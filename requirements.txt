@@ -1,25 +1,20 @@
-# Streamlit para los dashboards
-streamlit==1.26.1
-
-# Dash no es estrictamente necesario si solo usas Streamlit, pero si tu dashboard maestro lo tiene
-dash==2.11.1
-dash-core-components==2.11.1
-dash-html-components==2.11.1
-dash-table==5.0.0
-
-# Para análisis de datos
+# Core
+streamlit==1.25.0
 pandas==2.1.1
-numpy==1.26.0
+numpy==1.27.0
 
-# Gráficos
+# Visualización
 plotly==5.16.1
+networkx==3.1
+pyvis==0.2.1
+wordcloud==1.8.2.2
 matplotlib==3.8.0
-pyvis==0.3.1
-networkx==3.2
+seaborn==0.12.3
 
-# Forecasting
-prophet==1.2
+# Forecast / análisis predictivo
+prophet==1.2.2
 
-# Cualquier otro paquete que uses en tus scripts
+# Otros
 python-dateutil==2.8.2
 pytz==2025.7
+
