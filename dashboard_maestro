@@ -1,0 +1,74 @@
+import os
+from importlib import import_module
+
+# Módulos y rutas esperadas
+modules = {
+    "facebook": {
+        "path": r"dashboards\facebook\facebook_layout.py",
+        "function": "render_facebook_dashboard",
+        "data_attr": "CSV_PATH"  # si el módulo tiene variable CSV_PATH
+    },
+    "x_predictivo": {
+        "path": r"dashboards\x_predictivo\x_layout.py",
+        "function": "render_x_dashboard",
+        "data_attr": "CSV_PATH"
+    },
+    "benchmark": {
+        "path": r"dashboards\benchmark\benchmark_layout.py",
+        "function": "render_benchmark_dashboard",
+        "data_attr": "DATA_FOLDER"
+    },
+    "telegram": {
+        "path": r"dashboards\telegram\telegram_layout.py",
+        "function": "render_telegram_dashboard",
+        "data_attr": None
+    }
+}
+
+print(f"Directorio de trabajo: {os.getcwd()}\n")
+
+for name, info in modules.items():
+    print(f"--- Comprobando {name} ---")
+    full_path = os.path.join(os.getcwd(), info['path'])
+    if not os.path.exists(full_path):
+        print(f"❌ Archivo no encontrado: {full_path}\n")
+        continue
+    print(f"✅ Archivo encontrado: {full_path}")
+
+    # Importar módulo
+    module_name = f"dashboards.{name}.{info['path'].split(os.sep)[-1].replace('.py','')}"
+    try:
+        mod = import_module(module_name.replace("\\",".").replace("/","."))  # path Pythonic
+    except Exception as e:
+        print(f"❌ Error al importar módulo: {e}\n")
+        continue
+
+    # Verificar función render
+    if not hasattr(mod, info['function']):
+        print(f"❌ Función {info['function']} no encontrada en {module_name}\n")
+        continue
+    print(f"✅ Función {info['function']} encontrada")
+
+    # Verificar acceso a CSV / DATA_FOLDER
+    if info['data_attr'] and hasattr(mod, info['data_attr']):
+        data_path = getattr(mod, info['data_attr'])
+        # Si es carpeta, listar archivos
+        if os.path.isdir(data_path):
+            files = os.listdir(data_path)
+            print(f"✅ Carpeta encontrada: {data_path} ({len(files)} archivos)")
+        # Si es archivo, comprobar existencia
+        elif os.path.isfile(data_path):
+            print(f"✅ Archivo de datos encontrado: {data_path}")
+        else:
+            print(f"❌ La ruta de datos no existe: {data_path}")
+
+    # Intentar ejecutar la función render y ver qué devuelve
+    try:
+        result = getattr(mod, info['function'])()
+        if result:
+            print(f"✅ {info['function']} ejecutó correctamente y devolvió contenido\n")
+        else:
+            print(f"⚠ {info['function']} ejecutó pero devolvió contenido vacío\n")
+    except Exception as e:
+        print(f"❌ Error al ejecutar {info['function']}: {e}\n")
+

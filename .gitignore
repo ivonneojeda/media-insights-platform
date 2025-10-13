@@ -1,0 +1,54 @@
+# --- Archivos y carpetas de entorno virtual ---
+.venv/
+env/
+venv/
+ENV/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.env
+# --- Datos y resultados ---
+data/
+*.csv
+*.xlsx
+*.json
+*.pkl
+*.db
+
+# --- Archivos temporales ---
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# --- Configuraciones locales ---
+*.env
+config.json
+settings.json
+
+# --- Cache de Streamlit ---
+.streamlit/
+.cache/
+__pycache__/
+
+# --- Archivos de desarrollo ---
+.idea/
+.vscode/
+*.code-workspace
+
+# --- Compilaciones o backups ---
+dist/
+build/
+*.bak
+*.old
+*.zip
+*.tar
+*.gz
+
+# --- Modelos o binarios pesados ---
+models/
+checkpoints/
+*.h5
+*.pt
+*.ckpt

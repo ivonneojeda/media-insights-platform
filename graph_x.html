@@ -1,0 +1,259 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 600px;
+                 background-color: #0E1117;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+             #loadingBar {
+                 position:absolute;
+                 top:0px;
+                 left:0px;
+                 width: 100%;
+                 height: 600px;
+                 background-color:rgba(200,200,200,0.8);
+                 -webkit-transition: all 0.5s ease;
+                 -moz-transition: all 0.5s ease;
+                 -ms-transition: all 0.5s ease;
+                 -o-transition: all 0.5s ease;
+                 transition: all 0.5s ease;
+                 opacity:1;
+             }
+
+             #bar {
+                 position:absolute;
+                 top:0px;
+                 left:0px;
+                 width:20px;
+                 height:20px;
+                 margin:auto auto auto auto;
+                 border-radius:11px;
+                 border:2px solid rgba(30,30,30,0.05);
+                 background: rgb(0, 173, 246); /* Old browsers */
+                 box-shadow: 2px 0px 4px rgba(0,0,0,0.4);
+             }
+
+             #border {
+                 position:absolute;
+                 top:10px;
+                 left:10px;
+                 width:500px;
+                 height:23px;
+                 margin:auto auto auto auto;
+                 box-shadow: 0px 0px 4px rgba(0,0,0,0.2);
+                 border-radius:10px;
+             }
+
+             #text {
+                 position:absolute;
+                 top:8px;
+                 left:530px;
+                 width:30px;
+                 height:50px;
+                 margin:auto auto auto auto;
+                 font-size:22px;
+                 color: #000000;
+             }
+
+             div.outerBorder {
+                 position:relative;
+                 top:400px;
+                 width:600px;
+                 height:44px;
+                 margin:auto auto auto auto;
+                 border:8px solid rgba(0,0,0,0.1);
+                 background: rgb(252,252,252); /* Old browsers */
+                 background: -moz-linear-gradient(top,  rgba(252,252,252,1) 0%, rgba(237,237,237,1) 100%); /* FF3.6+ */
+                 background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(252,252,252,1)), color-stop(100%,rgba(237,237,237,1))); /* Chrome,Safari4+ */
+                 background: -webkit-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* Chrome10+,Safari5.1+ */
+                 background: -o-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* Opera 11.10+ */
+                 background: -ms-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* IE10+ */
+                 background: linear-gradient(to bottom,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* W3C */
+                 filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#fcfcfc', endColorstr='#ededed',GradientType=0 ); /* IE6-9 */
+                 border-radius:72px;
+                 box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+             }
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+            <div id="loadingBar">
+              <div class="outerBorder">
+                <div id="text">0%</div>
+                <div id="border">
+                  <div id="bar"></div>
+                </div>
+              </div>
+            </div>
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#97c2fc", "font": {"color": "white"}, "id": "UNAM", "label": "UNAM", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "CDMX", "label": "CDMX", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "LaMa\u00f1aneraDelPueblo", "label": "LaMa\u00f1aneraDelPueblo", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "SOMECE", "label": "SOMECE", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "IAEnLaEducaci\u00f3n", "label": "IAEnLaEducaci\u00f3n", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Importante", "label": "Importante", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Ej\u00e9rcito", "label": "Ej\u00e9rcito", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "CU.", "label": "CU.", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "911.", "label": "911.", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "error!", "label": "error!", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "GuardiaNacional", "label": "GuardiaNacional", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "GruposdeChoque", "label": "GruposdeChoque", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Omision", "label": "Omision", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Ent\u00e9rate", "label": "Ent\u00e9rate", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Seguridad", "label": "Seguridad", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "CCHSUR,", "label": "CCHSUR,", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "YoTeVeo", "label": "YoTeVeo", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ImagenNoticias", "label": "ImagenNoticias", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "FCPyS", "label": "FCPyS", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "AlMomento\ud83d\udea8I", "label": "AlMomento\ud83d\udea8I", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "\u00daltimaHora", "label": "\u00daltimaHora", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Urgente", "label": "Urgente", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Emergency", "label": "Emergency", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "M\u00e9xico", "label": "M\u00e9xico", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Pumas", "label": "Pumas", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "LigaMX", "label": "LigaMX", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "SeguridadUniversitaria", "label": "SeguridadUniversitaria", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Morena", "label": "Morena", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "4T", "label": "4T", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Sheinbaum", "label": "Sheinbaum", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Sinaloa", "label": "Sinaloa", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Zocalo", "label": "Zocalo", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "NOTICIA\ud83c\uddf2\ud83c\uddfd|", "label": "NOTICIA\ud83c\uddf2\ud83c\uddfd|", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "UAQ,", "label": "UAQ,", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "israel", "label": "israel", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "LordOfTheRings", "label": "LordOfTheRings", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "EstudioPlumilla", "label": "EstudioPlumilla", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BibliotecaCentralUNAM", "label": "BibliotecaCentralUNAM", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "juanogorman", "label": "juanogorman", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "enbici", "label": "enbici", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "dianublado", "label": "dianublado", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "EsNoticia", "label": "EsNoticia", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "OnceNoticiasDigital", "label": "OnceNoticiasDigital", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Gaza", "label": "Gaza", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Palestina", "label": "Palestina", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Israel", "label": "Israel", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Nacionales", "label": "Nacionales", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "FES", "label": "FES", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Latinus", "label": "Latinus", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Informaci\u00f3nParaTi", "label": "Informaci\u00f3nParaTi", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "LeonardoLomel\u00ed.", "label": "LeonardoLomel\u00ed.", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "vigilancia,", "label": "vigilancia,", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "saludmental", "label": "saludmental", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "VideosLaJornada", "label": "VideosLaJornada", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "unam", "label": "unam", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "rectorunam", "label": "rectorunam", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "cchsur", "label": "cchsur", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "RT", "label": "RT", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "TioTendencias", "label": "TioTendencias", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "LaCasaDeLosFamososMx", "label": "LaCasaDeLosFamososMx", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "MorenaEsUnPeligroParaMexico", "label": "MorenaEsUnPeligroParaMexico", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "CafeConMiyagi", "label": "CafeConMiyagi", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "GallitoIngles,", "label": "GallitoIngles,", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "NextNation", "label": "NextNation", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "MusicaNuevaNextNation?", "label": "MusicaNuevaNextNation?", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Deportes", "label": "Deportes", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Borregos", "label": "Borregos", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Lo\u00daltimo", "label": "Lo\u00daltimo", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "UNAM:", "label": "UNAM:", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "LaHojaSuelta", "label": "LaHojaSuelta", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "CultivamosMemorias", "label": "CultivamosMemorias", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "IGgenMedios", "label": "IGgenMedios", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "PATIOLab", "label": "PATIOLab", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ATBDigital", "label": "ATBDigital", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ATBNoticias", "label": "ATBNoticias", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "claudiasheinbaum", "label": "claudiasheinbaum", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "morena", "label": "morena", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "camaradediputados", "label": "camaradediputados", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "MexicoalMinuto", "label": "MexicoalMinuto", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "seguridadaescolar", "label": "seguridadaescolar", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "alerta", "label": "alerta", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "cdmx", "label": "cdmx", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "MA\u00d1ANA", "label": "MA\u00d1ANA", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "entradalibre", "label": "entradalibre", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "LibertadPorElSaber", "label": "LibertadPorElSaber", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "AlMomento", "label": "AlMomento", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ConoceM\u00e1s", "label": "ConoceM\u00e1s", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "EnVivo", "label": "EnVivo", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "LaOctava", "label": "LaOctava", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "UnGoyapara", "label": "UnGoyapara", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ComunidadFilos", "label": "ComunidadFilos", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "SomosFilosUNAM", "label": "SomosFilosUNAM", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "OrgulloUNAM", "label": "OrgulloUNAM", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ballet", "label": "ballet", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "estreno", "label": "estreno", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "FestivalCulturaUNAM.", "label": "FestivalCulturaUNAM.", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Salud", "label": "Salud", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "cerebro", "label": "cerebro", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "UNAMirada", "label": "UNAMirada", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Par\u00e1lisisCerebral", "label": "Par\u00e1lisisCerebral", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Curso", "label": "Curso", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "AgendaUNAM", "label": "AgendaUNAM", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "MuchaPresidenta", "label": "MuchaPresidenta", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "FelizDomingo", "label": "FelizDomingo", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "CTeTIC", "label": "CTeTIC", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "UNAMDigital", "label": "UNAMDigital", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Tecnolog\u00eda", "label": "Tecnolog\u00eda", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Educaci\u00f3nSuperior", "label": "Educaci\u00f3nSuperior", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "NoticiasMX", "label": "NoticiasMX", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "PeriodismoParaTi", "label": "PeriodismoParaTi", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "SociedadNoticias", "label": "SociedadNoticias", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "IsraeliNewNazism", "label": "IsraeliNewNazism", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "IsraelGenocida", "label": "IsraelGenocida", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "IsraelTerroristEntity", "label": "IsraelTerroristEntity", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Israel_Enemy_of_Humanity", "label": "Israel_Enemy_of_Humanity", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "CCH", "label": "CCH", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "desaparecida.", "label": "desaparecida.", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "TuSeguridadEsPrimero", "label": "TuSeguridadEsPrimero", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "LaPrevenci\u00f3nEsNuestraFuerza", "label": "LaPrevenci\u00f3nEsNuestraFuerza", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "UNAM,", "label": "UNAM,", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "SomosUAM", "label": "SomosUAM", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Nacional", "label": "Nacional", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Ma\u00f1anera", "label": "Ma\u00f1anera", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "EnLaMa\u00f1anera", "label": "EnLaMa\u00f1anera", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "JIS2025.", "label": "JIS2025.", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "STJ", "label": "STJ", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "DesdePALACIO", "label": "DesdePALACIO", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "AGENDASUDIMER", "label": "AGENDASUDIMER", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Ma\u00f1aneraDelPueblo", "label": "Ma\u00f1aneraDelPueblo", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "SaludMental.", "label": "SaludMental.", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "UnD\u00edaComoHoy", "label": "UnD\u00edaComoHoy", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "SoyDeporteUNAM", "label": "SoyDeporteUNAM", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "D\u00edaMundialdelH\u00e1bitat\ud83c\udfe1\ud83c\udf0fse", "label": "D\u00edaMundialdelH\u00e1bitat\ud83c\udfe1\ud83c\udf0fse", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Bolet\u00ednUNAM", "label": "Bolet\u00ednUNAM", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "SaludMental", "label": "SaludMental", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "RadioUNAMRecuerda", "label": "RadioUNAMRecuerda", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "DesdeLaUNAM", "label": "DesdeLaUNAM", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "CentenarioJuarroz", "label": "CentenarioJuarroz", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "VozEnOff:", "label": "VozEnOff:", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "Cultura", "label": "Cultura", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ExpertoUNAM", "label": "ExpertoUNAM", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "curso", "label": "curso", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "M\u00e1sCulturaM\u00e1sFES", "label": "M\u00e1sCulturaM\u00e1sFES", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BibliotecaIIJCarpizo", "label": "BibliotecaIIJCarpizo", "shape": "dot", "size": 10}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "SaborACiencia!", "label": "SaborACiencia!", "shape": "dot", "size": 10}]);
+                  edges = new vis.DataSet([{"from": "UNAM", "to": "CDMX", "width": 2}, {"from": "UNAM", "to": "LaMa\u00f1aneraDelPueblo", "width": 1}, {"from": "UNAM", "to": "SOMECE", "width": 1}, {"from": "UNAM", "to": "IAEnLaEducaci\u00f3n", "width": 1}, {"from": "UNAM", "to": "Importante", "width": 1}, {"from": "UNAM", "to": "Ej\u00e9rcito", "width": 2}, {"from": "UNAM", "to": "CU.", "width": 1}, {"from": "UNAM", "to": "911.", "width": 1}, {"from": "UNAM", "to": "error!", "width": 1}, {"from": "UNAM", "to": "GuardiaNacional", "width": 1}, {"from": "UNAM", "to": "GruposdeChoque", "width": 1}, {"from": "UNAM", "to": "Omision", "width": 1}, {"from": "UNAM", "to": "Ent\u00e9rate", "width": 1}, {"from": "UNAM", "to": "Seguridad", "width": 1}, {"from": "UNAM", "to": "CCHSUR,", "width": 1}, {"from": "UNAM", "to": "YoTeVeo", "width": 1}, {"from": "UNAM", "to": "ImagenNoticias", "width": 1}, {"from": "UNAM", "to": "FCPyS", "width": 1}, {"from": "UNAM", "to": "AlMomento\ud83d\udea8I", "width": 1}, {"from": "UNAM", "to": "\u00daltimaHora", "width": 1}, {"from": "UNAM", "to": "Urgente", "width": 1}, {"from": "UNAM", "to": "Emergency", "width": 1}, {"from": "UNAM", "to": "M\u00e9xico", "width": 1}, {"from": "UNAM", "to": "Pumas", "width": 1}, {"from": "UNAM", "to": "LigaMX", "width": 1}, {"from": "UNAM", "to": "SeguridadUniversitaria", "width": 1}, {"from": "UNAM", "to": "Morena", "width": 1}, {"from": "UNAM", "to": "4T", "width": 1}, {"from": "UNAM", "to": "Sheinbaum", "width": 1}, {"from": "UNAM", "to": "Sinaloa", "width": 1}, {"from": "UNAM", "to": "Zocalo", "width": 1}, {"from": "UNAM", "to": "NOTICIA\ud83c\uddf2\ud83c\uddfd|", "width": 1}, {"from": "UNAM", "to": "UAQ,", "width": 1}, {"from": "UNAM", "to": "israel", "width": 1}, {"from": "UNAM", "to": "LordOfTheRings", "width": 1}, {"from": "UNAM", "to": "EstudioPlumilla", "width": 1}, {"from": "UNAM", "to": "BibliotecaCentralUNAM", "width": 1}, {"from": "UNAM", "to": "juanogorman", "width": 1}, {"from": "UNAM", "to": "enbici", "width": 1}, {"from": "UNAM", "to": "dianublado", "width": 1}, {"from": "UNAM", "to": "EsNoticia", "width": 1}, {"from": "UNAM", "to": "OnceNoticiasDigital", "width": 1}, {"from": "UNAM", "to": "Gaza", "width": 1}, {"from": "UNAM", "to": "Palestina", "width": 1}, {"from": "UNAM", "to": "Israel", "width": 1}, {"from": "CDMX", "to": "LaMa\u00f1aneraDelPueblo", "width": 1}, {"from": "CDMX", "to": "AlMomento\ud83d\udea8I", "width": 1}, {"from": "CDMX", "to": "\u00daltimaHora", "width": 1}, {"from": "CDMX", "to": "Urgente", "width": 1}, {"from": "CDMX", "to": "Emergency", "width": 1}, {"from": "CDMX", "to": "M\u00e9xico", "width": 1}, {"from": "Nacionales", "to": "FES", "width": 1}, {"from": "Nacionales", "to": "FCPyS", "width": 1}, {"from": "FES", "to": "FCPyS", "width": 1}, {"from": "Latinus", "to": "Informaci\u00f3nParaTi", "width": 1}, {"from": "LeonardoLomel\u00ed.", "to": "vigilancia,", "width": 1}, {"from": "LeonardoLomel\u00ed.", "to": "saludmental", "width": 1}, {"from": "LeonardoLomel\u00ed.", "to": "VideosLaJornada", "width": 1}, {"from": "LeonardoLomel\u00ed.", "to": "unam", "width": 1}, {"from": "LeonardoLomel\u00ed.", "to": "rectorunam", "width": 1}, {"from": "LeonardoLomel\u00ed.", "to": "cchsur", "width": 1}, {"from": "vigilancia,", "to": "saludmental", "width": 1}, {"from": "vigilancia,", "to": "VideosLaJornada", "width": 1}, {"from": "vigilancia,", "to": "unam", "width": 1}, {"from": "vigilancia,", "to": "rectorunam", "width": 1}, {"from": "vigilancia,", "to": "cchsur", "width": 1}, {"from": "saludmental", "to": "VideosLaJornada", "width": 1}, {"from": "saludmental", "to": "unam", "width": 1}, {"from": "saludmental", "to": "rectorunam", "width": 1}, {"from": "saludmental", "to": "cchsur", "width": 1}, {"from": "VideosLaJornada", "to": "unam", "width": 1}, {"from": "VideosLaJornada", "to": "rectorunam", "width": 1}, {"from": "VideosLaJornada", "to": "cchsur", "width": 1}, {"from": "unam", "to": "rectorunam", "width": 1}, {"from": "unam", "to": "cchsur", "width": 1}, {"from": "rectorunam", "to": "cchsur", "width": 1}, {"from": "cchsur", "to": "RT", "width": 1}, {"from": "cchsur", "to": "TioTendencias", "width": 1}, {"from": "cchsur", "to": "LaCasaDeLosFamososMx", "width": 1}, {"from": "cchsur", "to": "MorenaEsUnPeligroParaMexico", "width": 1}, {"from": "SOMECE", "to": "IAEnLaEducaci\u00f3n", "width": 1}, {"from": "CafeConMiyagi", "to": "GallitoIngles,", "width": 1}, {"from": "CafeConMiyagi", "to": "NextNation", "width": 1}, {"from": "CafeConMiyagi", "to": "MusicaNuevaNextNation?", "width": 1}, {"from": "GallitoIngles,", "to": "NextNation", "width": 1}, {"from": "GallitoIngles,", "to": "MusicaNuevaNextNation?", "width": 1}, {"from": "NextNation", "to": "MusicaNuevaNextNation?", "width": 1}, {"from": "Deportes", "to": "Borregos", "width": 1}, {"from": "Deportes", "to": "Pumas", "width": 1}, {"from": "Borregos", "to": "Pumas", "width": 1}, {"from": "Pumas", "to": "LigaMX", "width": 1}, {"from": "Lo\u00daltimo", "to": "UNAM:", "width": 1}, {"from": "Ej\u00e9rcito", "to": "CU.", "width": 1}, {"from": "Ej\u00e9rcito", "to": "911.", "width": 1}, {"from": "Ej\u00e9rcito", "to": "error!", "width": 1}, {"from": "Ej\u00e9rcito", "to": "GuardiaNacional", "width": 1}, {"from": "CU.", "to": "911.", "width": 1}, {"from": "CU.", "to": "error!", "width": 1}, {"from": "911.", "to": "error!", "width": 1}, {"from": "LaHojaSuelta", "to": "CultivamosMemorias", "width": 1}, {"from": "IGgenMedios", "to": "PATIOLab", "width": 1}, {"from": "GruposdeChoque", "to": "Omision", "width": 1}, {"from": "ATBDigital", "to": "ATBNoticias", "width": 1}, {"from": "claudiasheinbaum", "to": "morena", "width": 1}, {"from": "claudiasheinbaum", "to": "camaradediputados", "width": 1}, {"from": "morena", "to": "camaradediputados", "width": 1}, {"from": "MexicoalMinuto", "to": "seguridadaescolar", "width": 1}, {"from": "MexicoalMinuto", "to": "alerta", "width": 1}, {"from": "MexicoalMinuto", "to": "cdmx", "width": 1}, {"from": "seguridadaescolar", "to": "alerta", "width": 1}, {"from": "seguridadaescolar", "to": "cdmx", "width": 1}, {"from": "alerta", "to": "cdmx", "width": 1}, {"from": "Ent\u00e9rate", "to": "Seguridad", "width": 1}, {"from": "MA\u00d1ANA", "to": "entradalibre", "width": 1}, {"from": "MA\u00d1ANA", "to": "LibertadPorElSaber", "width": 1}, {"from": "entradalibre", "to": "LibertadPorElSaber", "width": 1}, {"from": "AlMomento", "to": "OnceNoticiasDigital", "width": 1}, {"from": "AlMomento", "to": "ConoceM\u00e1s", "width": 1}, {"from": "OnceNoticiasDigital", "to": "EsNoticia", "width": 1}, {"from": "CCHSUR,", "to": "YoTeVeo", "width": 1}, {"from": "CCHSUR,", "to": "ImagenNoticias", "width": 1}, {"from": "YoTeVeo", "to": "ImagenNoticias", "width": 1}, {"from": "EnVivo", "to": "LaOctava", "width": 1}, {"from": "UnGoyapara", "to": "ComunidadFilos", "width": 1}, {"from": "UnGoyapara", "to": "SomosFilosUNAM", "width": 1}, {"from": "UnGoyapara", "to": "OrgulloUNAM", "width": 1}, {"from": "ComunidadFilos", "to": "SomosFilosUNAM", "width": 1}, {"from": "ComunidadFilos", "to": "OrgulloUNAM", "width": 1}, {"from": "SomosFilosUNAM", "to": "OrgulloUNAM", "width": 1}, {"from": "ballet", "to": "estreno", "width": 1}, {"from": "ballet", "to": "FestivalCulturaUNAM.", "width": 1}, {"from": "estreno", "to": "FestivalCulturaUNAM.", "width": 1}, {"from": "RT", "to": "TioTendencias", "width": 1}, {"from": "RT", "to": "LaCasaDeLosFamososMx", "width": 1}, {"from": "RT", "to": "MorenaEsUnPeligroParaMexico", "width": 1}, {"from": "TioTendencias", "to": "LaCasaDeLosFamososMx", "width": 1}, {"from": "TioTendencias", "to": "MorenaEsUnPeligroParaMexico", "width": 1}, {"from": "LaCasaDeLosFamososMx", "to": "MorenaEsUnPeligroParaMexico", "width": 1}, {"from": "AlMomento\ud83d\udea8I", "to": "\u00daltimaHora", "width": 1}, {"from": "AlMomento\ud83d\udea8I", "to": "Urgente", "width": 1}, {"from": "AlMomento\ud83d\udea8I", "to": "Emergency", "width": 1}, {"from": "AlMomento\ud83d\udea8I", "to": "M\u00e9xico", "width": 1}, {"from": "\u00daltimaHora", "to": "Urgente", "width": 1}, {"from": "\u00daltimaHora", "to": "Emergency", "width": 1}, {"from": "\u00daltimaHora", "to": "M\u00e9xico", "width": 1}, {"from": "Urgente", "to": "Emergency", "width": 1}, {"from": "Urgente", "to": "M\u00e9xico", "width": 1}, {"from": "Emergency", "to": "M\u00e9xico", "width": 1}, {"from": "Salud", "to": "cerebro", "width": 1}, {"from": "Salud", "to": "UNAMirada", "width": 1}, {"from": "Salud", "to": "Par\u00e1lisisCerebral", "width": 1}, {"from": "cerebro", "to": "UNAMirada", "width": 1}, {"from": "cerebro", "to": "Par\u00e1lisisCerebral", "width": 1}, {"from": "UNAMirada", "to": "Par\u00e1lisisCerebral", "width": 1}, {"from": "Curso", "to": "AgendaUNAM", "width": 1}, {"from": "Morena", "to": "4T", "width": 1}, {"from": "Morena", "to": "Sheinbaum", "width": 1}, {"from": "Morena", "to": "Sinaloa", "width": 1}, {"from": "Morena", "to": "Zocalo", "width": 1}, {"from": "4T", "to": "Sheinbaum", "width": 1}, {"from": "4T", "to": "Sinaloa", "width": 1}, {"from": "4T", "to": "Zocalo", "width": 1}, {"from": "Sheinbaum", "to": "Sinaloa", "width": 1}, {"from": "Sheinbaum", "to": "Zocalo", "width": 1}, {"from": "Sinaloa", "to": "Zocalo", "width": 1}, {"from": "Zocalo", "to": "MuchaPresidenta", "width": 1}, {"from": "Zocalo", "to": "FelizDomingo", "width": 1}, {"from": "MuchaPresidenta", "to": "FelizDomingo", "width": 1}, {"from": "CTeTIC", "to": "UNAMDigital", "width": 1}, {"from": "CTeTIC", "to": "Tecnolog\u00eda", "width": 1}, {"from": "CTeTIC", "to": "Educaci\u00f3nSuperior", "width": 1}, {"from": "CTeTIC", "to": "NoticiasMX", "width": 1}, {"from": "CTeTIC", "to": "PeriodismoParaTi", "width": 1}, {"from": "CTeTIC", "to": "SociedadNoticias", "width": 1}, {"from": "UNAMDigital", "to": "Tecnolog\u00eda", "width": 1}, {"from": "UNAMDigital", "to": "Educaci\u00f3nSuperior", "width": 1}, {"from": "UNAMDigital", "to": "NoticiasMX", "width": 1}, {"from": "UNAMDigital", "to": "PeriodismoParaTi", "width": 1}, {"from": "UNAMDigital", "to": "SociedadNoticias", "width": 1}, {"from": "Tecnolog\u00eda", "to": "Educaci\u00f3nSuperior", "width": 1}, {"from": "Tecnolog\u00eda", "to": "NoticiasMX", "width": 1}, {"from": "Tecnolog\u00eda", "to": "PeriodismoParaTi", "width": 1}, {"from": "Tecnolog\u00eda", "to": "SociedadNoticias", "width": 1}, {"from": "Educaci\u00f3nSuperior", "to": "NoticiasMX", "width": 1}, {"from": "Educaci\u00f3nSuperior", "to": "PeriodismoParaTi", "width": 1}, {"from": "Educaci\u00f3nSuperior", "to": "SociedadNoticias", "width": 1}, {"from": "NoticiasMX", "to": "PeriodismoParaTi", "width": 1}, {"from": "NoticiasMX", "to": "SociedadNoticias", "width": 1}, {"from": "PeriodismoParaTi", "to": "SociedadNoticias", "width": 1}, {"from": "UAQ,", "to": "israel", "width": 1}, {"from": "LordOfTheRings", "to": "EstudioPlumilla", "width": 1}, {"from": "BibliotecaCentralUNAM", "to": "juanogorman", "width": 1}, {"from": "BibliotecaCentralUNAM", "to": "enbici", "width": 1}, {"from": "BibliotecaCentralUNAM", "to": "dianublado", "width": 1}, {"from": "juanogorman", "to": "enbici", "width": 1}, {"from": "juanogorman", "to": "dianublado", "width": 1}, {"from": "enbici", "to": "dianublado", "width": 1}, {"from": "IsraeliNewNazism", "to": "IsraelGenocida", "width": 1}, {"from": "IsraeliNewNazism", "to": "IsraelTerroristEntity", "width": 1}, {"from": "IsraeliNewNazism", "to": "Israel_Enemy_of_Humanity", "width": 1}, {"from": "IsraelGenocida", "to": "IsraelTerroristEntity", "width": 1}, {"from": "IsraelGenocida", "to": "Israel_Enemy_of_Humanity", "width": 1}, {"from": "IsraelTerroristEntity", "to": "Israel_Enemy_of_Humanity", "width": 1}, {"from": "CCH", "to": "desaparecida.", "width": 2}, {"from": "Gaza", "to": "Palestina", "width": 1}, {"from": "Gaza", "to": "Israel", "width": 1}, {"from": "Palestina", "to": "Israel", "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "forceAtlas2Based": {
+            "avoidOverlap": 0,
+            "centralGravity": 0.01,
+            "damping": 0.4,
+            "gravitationalConstant": -50,
+            "springConstant": 0.08,
+            "springLength": 100
+        },
+        "solver": "forceAtlas2Based",
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+                      network.on("stabilizationProgress", function(params) {
+                          document.getElementById('loadingBar').removeAttribute("style");
+                          var maxWidth = 496;
+                          var minWidth = 20;
+                          var widthFactor = params.iterations/params.total;
+                          var width = Math.max(minWidth,maxWidth * widthFactor);
+                          document.getElementById('bar').style.width = width + 'px';
+                          document.getElementById('text').innerHTML = Math.round(widthFactor*100) + '%';
+                      });
+                      network.once("stabilizationIterationsDone", function() {
+                          document.getElementById('text').innerHTML = '100%';
+                          document.getElementById('bar').style.width = '496px';
+                          document.getElementById('loadingBar').style.opacity = 0;
+                          // really clean the dom element
+                          setTimeout(function () {document.getElementById('loadingBar').style.display = 'none';}, 500);
+                      });
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>
