@@ -15,3 +15,5 @@ __pycache__/
 data/
 *.csv
 
+*.pyd
+.DS_Store
