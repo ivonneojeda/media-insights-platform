@@ -24,6 +24,5 @@ def predict_risk(text):
     pred_class = max(prob_dict, key=prob_dict.get)
     
     return pred_class, prob_dict
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 
