@@ -1,28 +1,43 @@
-# model_utils.py
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-# Cargar modelo directamente desde Hugging Face
-MODEL_PATH = "Ivonne333/alertas_model"
+# URL del modelo en HuggingFace
+MODEL_NAME = "Ivonne333/alertas_model"
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
-model.eval()
+# Inicialización segura del modelo y tokenizer
+try:
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+except Exception as e:
+    print(f"No se pudo cargar el modelo de HuggingFace: {e}")
+    tokenizer = None
+    model = None
 
-def predict_risk(text):
+def predict_risk(mensaje):
     """
-    Predice el nivel de riesgo de un texto.
-    Retorna la clase con mayor probabilidad y un diccionario con todas las probabilidades.
+    Predice el nivel de riesgo de un mensaje.
+    Devuelve: (riesgo_predicho, probabilidades)
     """
-    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True)
-    with torch.no_grad():
-        outputs = model(**inputs)
-        probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
-    
-    classes = ["Bajo", "Medio", "Alto"]
-    prob_dict = {classes[i]: float(probs[0][i]) for i in range(len(classes))}
-    pred_class = max(prob_dict, key=prob_dict.get)
-    
-    return pred_class, prob_dict
+    if not mensaje or not model or not tokenizer:
+        return "Desconocido", None
 
+    try:
+        # Tokenización
+        inputs = tokenizer(mensaje, return_tensors="pt", truncation=True, padding=True)
 
+        # Inferencia sin gradientes
+        with torch.no_grad():
+            outputs = model(**inputs)
+            logits = outputs.logits
+            probs = torch.softmax(logits, dim=-1)
+            riesgo_idx = torch.argmax(probs, dim=-1).item()
+
+        # Mapear índice a etiqueta (asume labels: 0='Bajo', 1='Medio', 2='Alto')
+        labels = ["Bajo", "Medio", "Alto"]
+        riesgo_predicho = labels[riesgo_idx] if riesgo_idx < len(labels) else "Desconocido"
+
+        return riesgo_predicho, probs.tolist()
+
+    except Exception as e:
+        print(f"Error en predict_risk: {e}")
+        return "Desconocido", None
