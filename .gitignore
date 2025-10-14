@@ -1,19 +1,39 @@
-# Entornos virtuales
+# Entorno virtual
+venv_miproyecto/
 .venv/
-venv/
 
-# Archivos de entorno
-.env
-
-# Archivos temporales
+# Archivos de caché
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 *.log
 
-# Datos locales
-data/
-*.csv
+# Archivos de configuración locales
+.env
 
-*.pyd
+# Modelos pesados y checkpoints
+*.pt
+*.bin
+*.ckpt
+*.safetensors
+*.pth
+
+# Carpeta de datos locales
+data/
+datasets/
+models/
+checkpoints/
+
+# Streamlit y cache
+.streamlit/
+.cache/
+
+# Archivos del sistema
 .DS_Store
+Thumbs.db
+
+# Archivos temporales
+*.tmp
+*.bak
+
