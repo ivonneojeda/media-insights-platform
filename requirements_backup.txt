@@ -1,0 +1,20 @@
+# Core
+numpy==1.27.0
+pandas==2.0.3
+python-dateutil==2.8.2
+pytz==2025.7
+
+# Streamlit
+streamlit==1.25.0
+
+# Visualización del dashboard
+matplotlib==3.8.0
+seaborn==0.12.3
+pyvis==0.3.1
+wordcloud==1.8.2.2
+plotly==5.15.0
+networkx==3.1
+
+# Forecast / análisis predictivo
+prophet==1.3
+

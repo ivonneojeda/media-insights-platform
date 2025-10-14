@@ -7,13 +7,10 @@ pyvis==0.3.1
 wordcloud==1.8.2.2
 matplotlib==3.8.0
 seaborn==0.12.3
-
 # Otros
 python-dateutil==2.8.2
 pytz==2025.7
 pandas==2.0.3
-plotly
-prophet
-networkx
-
-
+prophet==1.2
+plotly==5.15.0
+networkx==3.1
