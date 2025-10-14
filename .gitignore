@@ -9,23 +9,22 @@ __pycache__/
 *.pyd
 *.log
 
-# Archivos de configuración locales
+# Configuración local
 .env
 
-# Modelos pesados y checkpoints
+# Archivos de modelos grandes (no necesarios en producción)
 *.pt
 *.bin
 *.ckpt
 *.safetensors
 *.pth
 
-# Carpeta de datos locales
-data/
-datasets/
-models/
-checkpoints/
+# Carpetas de datos o modelos pesados (revisar antes de excluir)
+# datasets/
+# models/
+# checkpoints/
 
-# Streamlit y cache
+# Streamlit y cache local
 .streamlit/
 .cache/
 
@@ -36,4 +35,5 @@ Thumbs.db
 # Archivos temporales
 *.tmp
 *.bak
+
 
