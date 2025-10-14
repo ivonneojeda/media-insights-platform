@@ -2,8 +2,9 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from dashboards.telegram.model_utils import predict_risk
+from model_utils import predict_risk
 import os
+
 CSV_PATH = r"C:\Users\ivonn\Desktop\Alertas\data\telegram_alerts.csv"
 
 if "df" not in st.session_state:
@@ -16,11 +17,12 @@ def render_telegram_dashboard():
     st.title("Alertas de Ciberseguridad en Tiempo Real")
 
     st.subheader("Alertas recibidas")
-    st.dataframe(st.session_state.df)
+    st.dataframe(st.session_state.df.sort_values("timestamp", ascending=False))
 
     st.subheader("Agregar alerta manual")
     canal_input = st.text_input("Canal:")
     mensaje_input = st.text_area("Mensaje:")
+
     if st.button("Agregar alerta"):
         if mensaje_input.strip() != "":
             riesgo_predicho, _ = predict_risk(mensaje_input)
