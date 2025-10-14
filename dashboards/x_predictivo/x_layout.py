@@ -1,6 +1,5 @@
 # dashboards/x_predictivo/x_layout.py
 import os
-import tempfile
 import pandas as pd
 import streamlit as st
 import networkx as nx
@@ -52,7 +51,7 @@ def prepare_prophet_series(df, date_col="created_at", sentiment_col="sentiment",
     return df_hour
 
 # -----------------------
-# PROPHE T: generar forecast (con chequeos)
+# PROPHET: generar forecast (con chequeos)
 # -----------------------
 def build_prophet_forecast(df_hour, periods=8, freq="H"):
     fig = go.Figure()
@@ -125,8 +124,10 @@ def render_pyvis_graph(G, height=600):
         net.add_edge(u, v, value=weight, title=f"weight: {weight}")
     net.force_atlas_2based()
 
-    # Carpeta temporal segura para Streamlit Cloud
-    tmp_dir = tempfile.mkdtemp()
+    # Carpeta temporal persistente dentro del proyecto
+    tmp_dir = ".//tmp"
+    os.makedirs(tmp_dir, exist_ok=True)  # crea la carpeta tmp si no existe
+
     tmp_path = os.path.join(tmp_dir, "pyvis_graph.html")
     net.save_graph(tmp_path)
 
@@ -195,4 +196,6 @@ def render_x_dashboard():
         st.table(top.head(20))
     else:
         st.info("No se encontraron hashtags para listar.")
+
+
 
