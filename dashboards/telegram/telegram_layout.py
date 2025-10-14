@@ -1,54 +1,64 @@
 # dashboards/telegram/telegram_layout.py
-import streamlit as st
-import pandas as pd
-from datetime import datetime
-from dashboards.telegram.model_utils import predict_risk
 import os
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+from prophet import Prophet
 
-# --- ELIMINAR cualquier st.set_page_config() ---
-# --- Ajustar ruta CSV a la carpeta 'data' del proyecto ---
-CSV_PATH = os.path.join("data", "alertas.csv")
+# -----------------------
+# CONFIG: ruta relativa al CSV
+# -----------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_PATH = os.path.join(BASE_DIR, "..", "..", "data", "telegram_alerts.csv")
 
-# --- Cargar o inicializar el DataFrame ---
-if "df" not in st.session_state:
-    if os.path.exists(CSV_PATH):
-        st.session_state.df = pd.read_csv(CSV_PATH)
-    else:
-        st.session_state.df = pd.DataFrame(columns=["timestamp", "canal", "mensaje", "riesgo"])
+# -----------------------
+# UTIL: cargar datos (cacheado)
+# -----------------------
+@st.cache_data(ttl=600)
+def load_data(path=CSV_PATH):
+    if not os.path.exists(path):
+        st.error(f"No se encontró el archivo CSV: {path}")
+        return pd.DataFrame()
+    df = pd.read_csv(path, encoding="utf-8", on_bad_lines="skip")
+    df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce')
+    return df
 
+# -----------------------
+# UTIL: forecast con Prophet
+# -----------------------
+def forecast(df, column):
+    if column not in df.columns:
+        st.warning(f"⚠️ Columna {column} no existe en el CSV")
+        return pd.DataFrame()
+    prophet_df = df.rename(columns={'created_at':'ds', column:'y'})
+    if prophet_df['y'].nunique() <= 1:
+        return prophet_df.assign(yhat=prophet_df['y'])
+    model = Prophet(daily_seasonality=True)
+    model.fit(prophet_df)
+    future = model.make_future_dataframe(periods=30)
+    forecast_df = model.predict(future)
+    return forecast_df[['ds', 'yhat']]
+
+# -----------------------
+# LAYOUT principal
+# -----------------------
 def render_telegram_dashboard():
-    st.title("🚨 Alertas de Ciberseguridad en Tiempo Real")
+    st.title("💬 Telegram Alerts — Análisis de actividad")
 
-    # Mostrar alertas existentes
-    st.subheader("Alertas recibidas")
-    st.dataframe(st.session_state.df.sort_values("timestamp", ascending=False))
+    df = load_data()
+    if df.empty:
+        st.info("No hay datos para mostrar")
+        return
 
-    # Agregar alerta manual
-    st.subheader("Agregar alerta manual")
-    canal_input = st.text_input("Canal:")
-    mensaje_input = st.text_area("Mensaje:")
+    st.subheader("Vista previa de datos")
+    st.dataframe(df.head(10))
 
-    if st.button("Agregar alerta"):
-        if mensaje_input.strip() != "":
-            try:
-                riesgo_predicho, _ = predict_risk(mensaje_input)
-            except Exception:
-                riesgo_predicho = "Desconocido"
+    metric = st.selectbox("Selecciona métrica", ["likes_count", "retweets_count", "followers_count"])
+    forecast_df = forecast(df, metric)
 
-            nueva_alerta = {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "canal": canal_input if canal_input else "Manual",
-                "mensaje": mensaje_input,
-                "riesgo": riesgo_predicho
-            }
+    fig = px.line(df, x='created_at', y=metric, markers=True, title=f"{metric} histórico")
+    st.plotly_chart(fig, use_container_width=True)
 
-            st.session_state.df = pd.concat(
-                [st.session_state.df, pd.DataFrame([nueva_alerta])], ignore_index=True
-            )
-
-            # Guardar CSV
-            st.session_state.df.to_csv(CSV_PATH, index=False)
-            st.experimental_rerun()
-        else:
-            st.warning("Escribe un mensaje para agregar.")
-
+    if not forecast_df.empty:
+        fig2 = px.line(forecast_df, x='ds', y='yhat', title=f"{metric} pronóstico 30 días")
+        st.plotly_chart(fig2, use_container_width=True)

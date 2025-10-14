@@ -1,14 +1,24 @@
-streamlit==1.25.0
-numpy>=1.24,<1.26
-setuptools>=68.0.0
+# ========== REQUISITOS PARA DEPLOY (Streamlit Cloud) ==========
+# Streamlit y visualización
+streamlit==1.36.0
 pyvis==0.3.1
-wordcloud==1.9.4
+plotly==6.3.1
 matplotlib==3.10.7
 seaborn==0.13.2
-python-dateutil==2.9.0
-pytz==2025.2
-pandas==2.1.1
-plotly==6.3.1
-prophet==1.1.7
+wordcloud==1.9.4
+
+# Ciencia de datos
+numpy==1.26.4
+pandas==2.2.3
 networkx==3.5
+
+# Modelado y series temporales
+prophet==1.1.5
+
+# Manejo de fechas
+python-dateutil==2.9.0.post0
+pytz==2025.2
+
+# Utilidades
+setuptools>=68.0.0
 

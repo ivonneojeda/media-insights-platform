@@ -125,7 +125,9 @@ def render_pyvis_graph(G, height=600):
         net.add_edge(u, v, value=weight, title=f"weight: {weight}")
     net.force_atlas_2based()
 
-    tmp_path = os.path.join(tempfile.gettempdir(), "pyvis_temp.html")
+    # Carpeta temporal segura para Streamlit Cloud
+    tmp_dir = tempfile.mkdtemp()
+    tmp_path = os.path.join(tmp_dir, "pyvis_graph.html")
     net.save_graph(tmp_path)
 
     with open(tmp_path, "r", encoding="utf-8") as f:
@@ -193,5 +195,4 @@ def render_x_dashboard():
         st.table(top.head(20))
     else:
         st.info("No se encontraron hashtags para listar.")
-
 

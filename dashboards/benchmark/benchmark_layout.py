@@ -8,7 +8,7 @@ import streamlit as st
 # -----------------------
 # CONFIG: carpeta de datos y archivos
 # -----------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # dashboards/benchmark
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FOLDER = os.path.join(BASE_DIR, "..", "..", "data")
 FILES = [
     "ipn_social_growth_jul_sep_2025.csv",
@@ -39,16 +39,9 @@ def load_data():
 # UTIL: forecast con Prophet
 # -----------------------
 def forecast(df, column):
-    if column not in df.columns:
-        # columna no existe
-        return df.rename(columns={'date':'ds'}).assign(yhat=df[column] if column in df.columns else 0)
-    
     prophet_df = df.rename(columns={'date':'ds', column:'y'})
     if prophet_df['y'].nunique() <= 1:
-        # Serie constante: no se puede usar Prophet
-        prophet_df['yhat'] = prophet_df['y']
-        return prophet_df[['ds', 'yhat']]
-
+        return prophet_df.assign(yhat=prophet_df['y'])
     model = Prophet(daily_seasonality=True)
     model.fit(prophet_df)
     future = model.make_future_dataframe(periods=30)
@@ -69,7 +62,6 @@ def render_benchmark_dashboard():
         return
 
     fig = go.Figure()
-
     for uni, df in data_dict.items():
         if metric not in df.columns:
             st.warning(f"⚠️ La columna '{metric}' no existe en {uni}")
@@ -95,5 +87,6 @@ def render_benchmark_dashboard():
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
 
 
