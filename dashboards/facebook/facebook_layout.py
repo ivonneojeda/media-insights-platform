@@ -1,102 +1,70 @@
-# dashboards/facebook/facebook_layout.py
+# facebook_layout.py
 import os
 import pandas as pd
 import streamlit as st
-import plotly.graph_objects as go
-from prophet import Prophet
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 
 # -----------------------
-# CONFIG: ruta al CSV de Facebook
+# CONFIG: ruta relativa al CSV
 # -----------------------
-CSV_PATH = r"C:\Users\ivonn\Desktop\dashboard_maestro\data\sentimiento_2025-09-30_22-00-03.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_PATH = os.path.join(BASE_DIR, "..", "..", "data", "sentimiento_2025-09-30_22-00-03.csv")
+CSV_PATH = os.path.abspath(CSV_PATH)
 
 # -----------------------
-# CARGA CSV
+# CARGA CSV (segura)
 # -----------------------
 @st.cache_data(ttl=600)
-def load_data(path=CSV_PATH):
+def load_facebook_data(path=CSV_PATH):
     if not os.path.exists(path):
         st.error(f"No se encontró el archivo CSV en: {path}")
         return pd.DataFrame()
     try:
         df = pd.read_csv(path, encoding="utf-8", on_bad_lines="skip")
-        # Mapear columnas reales a las que el código espera
-        df = df.rename(columns={"Fecha":"created_at","Sentimiento":"sentiment"})
         return df
     except Exception as e:
-        st.error(f"Error leyendo CSV: {e}")
+        st.error(f"Error leyendo CSV ({path}): {e}")
         return pd.DataFrame()
 
 # -----------------------
-# Preparar serie para Prophet
-# -----------------------
-def prepare_prophet_series(df, date_col="created_at", sentiment_col="sentiment", resample_freq="1H"):
-    df = df.copy()
-    if date_col not in df.columns or sentiment_col not in df.columns:
-        return pd.DataFrame()
-    
-    df[date_col] = pd.to_datetime(df[date_col], errors="coerce").dt.tz_localize(None)
-    df = df.dropna(subset=[date_col, sentiment_col])
-    if df.empty:
-        return pd.DataFrame()
-    
-    sent_map = {"Positivo":1,"Negativo":-1,"Neutro":0,"positive":1,"negative":-1,"neutral":0}
-    def map_sent(x):
-        try:
-            return float(x)
-        except Exception:
-            return sent_map.get(str(x).strip(), 0.0)
-    df["_sent_score"] = df[sentiment_col].map(map_sent).astype(float)
-    
-    df = df.set_index(date_col).sort_index()
-    df_hour = df["_sent_score"].resample(resample_freq).mean().fillna(0).reset_index()
-    df_hour = df_hour.rename(columns={date_col:"ds","_sent_score":"y"})
-    return df_hour
-
-# -----------------------
-# Generar forecast Prophet
-# -----------------------
-def build_prophet_forecast(df_hour, periods=8, freq="H"):
-    fig = go.Figure()
-    if df_hour.empty or df_hour["y"].nunique() <= 1 or len(df_hour) < 6:
-        fig.update_layout(title="No hay datos suficientes para pronóstico con Prophet")
-        return fig, None
-    try:
-        model = Prophet()
-        model.fit(df_hour)
-        future = model.make_future_dataframe(periods=periods, freq=freq)
-        forecast = model.predict(future)
-    except Exception as e:
-        fig.update_layout(title=f"Error entrenando Prophet: {e}")
-        return fig, None
-
-    fig.add_trace(go.Scatter(x=df_hour["ds"], y=df_hour["y"], mode="markers", name="Histórico"))
-    fig.add_trace(go.Scatter(x=forecast["ds"], y=forecast["yhat"], mode="lines", name="Pronóstico"))
-    if "yhat_upper" in forecast and "yhat_lower" in forecast:
-        fig.add_trace(go.Scatter(x=forecast["ds"], y=forecast["yhat_upper"], mode="lines", line=dict(width=0), showlegend=False))
-        fig.add_trace(go.Scatter(x=forecast["ds"], y=forecast["yhat_lower"], mode="lines", fill="tonexty", fillcolor="rgba(255,165,0,0.2)", name="Intervalo 95%"))
-
-    fig.update_layout(title=f"Pronóstico de sentimiento ({periods}h)", xaxis_title="Fecha", yaxis_title="Sentimiento promedio")
-    return fig, model
-
-# -----------------------
-# LAYOUT principal
+# RENDER DASHBOARD
 # -----------------------
 def render_facebook_dashboard():
-    st.title("📊 Facebook — Análisis de sentimiento")
-    st.markdown(f"📁 Ruta esperada del CSV:<br> `{CSV_PATH}`", unsafe_allow_html=True)
-
-    df = load_data()
+    st.title("Dashboard de Facebook")
+    
+    df = load_facebook_data()
     if df.empty:
-        st.info("No hay datos disponibles en el CSV de Facebook.")
+        st.warning("No hay datos disponibles en el CSV de Facebook.")
         return
 
-    st.subheader("Vista previa de datos")
-    st.dataframe(df.head(10))
+    # Mostrar vista previa
+    st.subheader("Vista previa del CSV")
+    st.dataframe(df.head())
 
-    df_hour = prepare_prophet_series(df)
-    st.write("Datos procesados para Prophet:", df_hour.head())
+    # -----------------------
+    # Analizar sentimiento
+    # -----------------------
+    if 'Sentimiento' in df.columns:
+        st.subheader("Distribución de sentimiento")
+        sentiment_counts = df['Sentimiento'].value_counts()
+        st.bar_chart(sentiment_counts)
+    else:
+        st.info("La columna 'Sentimiento' no se encuentra en el CSV.")
 
-    fig_forecast, model = build_prophet_forecast(df_hour)
-    st.plotly_chart(fig_forecast, use_container_width=True)
-
+    # -----------------------
+    # Nube de palabras
+    # -----------------------
+    if 'Post' in df.columns:
+        st.subheader("Nube de palabras")
+        text = " ".join(df['Post'].dropna().astype(str))
+        if text.strip() == "":
+            st.info("No hay texto disponible para generar la nube de palabras.")
+        else:
+            wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
+            fig, ax = plt.subplots(figsize=(10,5))
+            ax.imshow(wordcloud, interpolation='bilinear')
+            ax.axis('off')
+            st.pyplot(fig)
+    else:
+        st.info("La columna 'Post' no se encuentra en el CSV.")
