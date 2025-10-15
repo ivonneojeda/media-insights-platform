@@ -3,58 +3,48 @@ import os
 import pandas as pd
 import streamlit as st
 
-def render_telegram_dashboard():
-    """
-    Dashboard de alertas de Telegram (versión temporal sin PyTorch)
-    """
+# -----------------------
+# CONFIG: ruta al CSV de alertas de Telegram
+# -----------------------
+CSV_PATH = r"C:\Users\ivonn\Desktop\dashboard_maestro\data\alertas.csv"
 
-    st.title("📊 Telegram — Alertas de riesgo")
-
-    # -----------------------
-    # Ruta al CSV de alertas
-    # -----------------------
-    CSV_PATH = r"C:\Users\ivonn\Desktop\dashboard_maestro\data\alertas.csv"
-
-    # -----------------------
-    # Carga del CSV (robusta)
-    # -----------------------
-    if not os.path.exists(CSV_PATH):
-        st.error(f"No se encontró el archivo CSV en: {CSV_PATH}")
-        return
-
+# -----------------------
+# CARGA CSV
+# -----------------------
+@st.cache_data(ttl=600)
+def load_data(path=CSV_PATH):
+    if not os.path.exists(path):
+        st.error(f"No se encontró el archivo CSV en: {path}")
+        return pd.DataFrame()
     try:
-        df = pd.read_csv(CSV_PATH, encoding="utf-8", on_bad_lines="skip")
+        df = pd.read_csv(path, encoding="utf-8", on_bad_lines="skip")
+        return df
     except Exception as e:
         st.error(f"Error leyendo CSV: {e}")
-        return
+        return pd.DataFrame()
 
+# -----------------------
+# LAYOUT principal
+# -----------------------
+def render_telegram_dashboard():
+    st.title("📊 Telegram — Alertas de riesgo")
+    st.markdown(f"📁 Ruta esperada del CSV:<br> `{CSV_PATH}`", unsafe_allow_html=True)
+
+    df = load_data()
     if df.empty:
-        st.warning("El archivo CSV está vacío")
+        st.info("No hay datos disponibles en el CSV de alertas.")
         return
 
-    # -----------------------
-    # Mostrar vista previa
-    # -----------------------
-    st.subheader("Vista previa de las alertas cargadas")
+    st.subheader("Vista previa de alertas")
     st.dataframe(df.head(10))
 
-    # -----------------------
-    # Conteo de niveles de riesgo
-    # -----------------------
+    # Estadísticas simples por nivel de riesgo
     if "riesgo" in df.columns:
-        st.subheader("Conteo por nivel de riesgo")
         counts = df["riesgo"].value_counts().sort_index()
+        st.subheader("Resumen de niveles de riesgo")
         st.bar_chart(counts)
     else:
-        st.info("No se encontró la columna 'riesgo' en el CSV")
+        st.warning("⚠️ La columna 'riesgo' no existe en el CSV.")
 
-    # -----------------------
-    # Lista de alertas
-    # -----------------------
-    st.subheader("Alertas recientes")
-    if "texto" in df.columns:
-        st.write(df[["texto", "riesgo"]].head(20))
-    else:
-        st.info("No se encontró la columna 'texto' en el CSV")
 
 
