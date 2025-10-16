@@ -13,52 +13,61 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- ESTILO DEL CONTENEDOR ---
-# Se puede cambiar el color de fondo del contenedor principal
-st.markdown(
-    """
-    <style>
-    .main > div {
-        background-color: #F9F9F9;  /* Fondo claro */
-        padding: 1rem;
-        border-radius: 8px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# --- SIDEBAR: Modo Claro/Oscuro ---
+modo = st.sidebar.radio("Selecciona un modo de visualización:", ["Claro", "Oscuro"])
+if modo == "Claro":
+    st.markdown(
+        """
+        <style>
+        .main {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown(
+        """
+        <style>
+        .main {
+            background-color: #0E1117;
+            color: #ffffff;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 # --- ENCABEZADO PRINCIPAL ---
-st.title("Dashboard de inteligencia digital")
+st.title("Dashboard de Inteligencia Digital")
 st.markdown("Visualización unificada de análisis en redes sociales y canales de alerta.")
 
-# --- MENÚ LATERAL ---
-st.sidebar.title("Secciones del Dashboard")
-st.sidebar.markdown("Selecciona una plataforma para ver sus métricas:")
+st.info("Selecciona una plataforma para ver sus métricas en las pestañas de abajo.")
 
-section = st.sidebar.radio(
-    "",
-    ["Listening", "Analysis", "Benchmark", "Incidencias"]
-)
+# --- MENÚ DE NAVEGACIÓN ---
+tabs = st.tabs(["Listening", "Analysis", "Benchmark", "Incidencias"])
 
-# --- CONTENIDO DE CADA SECCIÓN ---
-if section == "Listening":
-    st.subheader("Dashboard Listening")
-    st.markdown("Análisis de métricas y sentimiento en Facebook.")
+# --- CONTENIDO DE CADA PESTAÑA ---
+with tabs[0]:
+    st.header("Listening")
+    st.subheader("Dashboard de métricas de redes sociales")
     render_facebook_dashboard()
 
-elif section == "Analysis":
-    st.subheader("Dashboard Analysis")
-    st.markdown("Análisis predictivo de sentimiento y hashtags en X (Twitter).")
+with tabs[1]:
+    st.header("Analysis")
+    st.subheader("Análisis predictivo de sentimiento y hashtags en X (Twitter)")
     render_x_dashboard()
 
-elif section == "Benchmark":
-    st.subheader("Benchmark Institucional")
-    st.markdown("Comparativo de métricas entre diferentes redes sociales.")
+with tabs[2]:
+    st.header("Benchmark")
+    st.subheader("Comparativo de métricas entre instituciones y redes sociales")
     render_benchmark_dashboard()
 
-elif section == "Incidencias":
-    st.subheader("Alertas de riesgo")
-    st.markdown("Registro de alertas y nivel de riesgo de mensajes en Telegram.")
+with tabs[3]:
+    st.header("Incidencias")
+    st.subheader("Alertas de riesgo y mensajes críticos")
     render_telegram_dashboard()
+
 
