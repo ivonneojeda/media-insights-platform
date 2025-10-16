@@ -20,6 +20,18 @@ theme = st.sidebar.radio("Selecciona un modo", ["Claro", "Oscuro"])
 if theme == "Claro":
     bg_color = "#FFFFFF"
     text_color = "#2F2F2F"
+    sidebar_bg = "#F5F6FA"
+    sidebar_text_color = "#000000"
+else:
+    bg_color = "#0E1117"
+    text_color = "#FFFFFF"
+    sidebar_bg = "#1B1F2B"
+    sidebar_text_color = "#FFFFFF"
+
+# Ajuste de estilos según modo
+if theme == "Claro":
+    bg_color = "#FFFFFF"
+    text_color = "#2F2F2F"
     sidebar_bg = "#F0F2F6"
 else:
     bg_color = "#0E1117"
