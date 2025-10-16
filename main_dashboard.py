@@ -16,27 +16,17 @@ st.set_page_config(
 # --- Modo claro / oscuro ---
 theme = st.sidebar.radio("Selecciona un modo", ["Claro", "Oscuro"])
 
-# Ajuste de estilos según modo
+# --- Colores principales ---
 if theme == "Claro":
     bg_color = "#FFFFFF"
     text_color = "#2F2F2F"
-    sidebar_bg = "#F5F6FA"
-    sidebar_text_color = "#000000"
 else:
     bg_color = "#0E1117"
     text_color = "#FFFFFF"
-    sidebar_bg = "#1B1F2B"
-    sidebar_text_color = "#FFFFFF"
 
-# Ajuste de estilos según modo
-if theme == "Claro":
-    bg_color = "#FFFFFF"
-    text_color = "#2F2F2F"
-    sidebar_bg = "#F0F2F6"
-else:
-    bg_color = "#0E1117"
-    text_color = "#FFFFFF"
-    sidebar_bg = "#1B1F2B"
+# --- Sidebar con color fijo ---
+sidebar_bg = "#1E293B"         # gris azulado oscuro (constante)
+sidebar_text_color = "#FFFFFF" # texto blanco siempre
 
 # --- Estilos CSS ---
 st.markdown(
@@ -48,15 +38,13 @@ st.markdown(
     }}
     /* Sidebar */
     [data-testid="stSidebar"] {{
-        background-color: {sidebar_bg};
-        color: {text_color};
+        background-color: {sidebar_bg} !important;
     }}
-    /* Títulos de sección y headers */
-    .css-1d391kg, h1, h2, h3, h4 {{
-        color: {text_color};
+    [data-testid="stSidebar"] * {{
+        color: {sidebar_text_color} !important;
     }}
-    /* Botones de radio en sidebar */
-    div[role="radiogroup"] label {{
+    /* Texto general */
+    h1, h2, h3, h4, h5, h6, p, label, span {{
         color: {text_color};
     }}
     </style>
@@ -90,4 +78,3 @@ elif selected_dashboard == "Benchmark":
 elif selected_dashboard == "Incidencias":
     st.header("Incidencias")
     render_telegram_dashboard()
-
