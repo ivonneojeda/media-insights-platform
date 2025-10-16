@@ -14,42 +14,38 @@ st.set_page_config(
 )
 
 # --- Modo claro / oscuro ---
-theme = st.sidebar.radio("Personalización de tema", ["Claro", "Oscuro"])
+theme = st.sidebar.radio("Selecciona un modo", ["Claro", "Oscuro"])
 
 # Ajuste de estilos según modo
 if theme == "Claro":
     bg_color = "#FFFFFF"
-    text_color = "#000000"
-    tab_bg_color = "#E0E0E0"
-    tab_text_color = "#000000"
+    text_color = "#2F2F2F"
+    sidebar_bg = "#F0F2F6"
 else:
     bg_color = "#0E1117"
     text_color = "#FFFFFF"
-    tab_bg_color = "#1B1B2F"
-    tab_text_color = "#FFFFFF"
+    sidebar_bg = "#1B1F2B"
 
-# --- Limpiar caché para evitar problemas de colores ---
-st.cache_data.clear()
-st.cache_resource.clear()
-
-# --- Estilos CSS generales ---
+# --- Estilos CSS ---
 st.markdown(
     f"""
     <style>
-    /* Fondo y texto general */
     .stApp {{
         background-color: {bg_color};
         color: {text_color};
     }}
     /* Sidebar */
-    .css-1d391kg, .css-1avcm0n {{
+    [data-testid="stSidebar"] {{
+        background-color: {sidebar_bg};
         color: {text_color};
     }}
-    /* Ajuste de títulos de pestañas */
-    .css-1offfwp {{
-        background-color: {tab_bg_color} !important;
-        color: {tab_text_color} !important;
-        font-weight: bold;
+    /* Títulos de sección y headers */
+    .css-1d391kg, h1, h2, h3, h4 {{
+        color: {text_color};
+    }}
+    /* Botones de radio en sidebar */
+    div[role="radiogroup"] label {{
+        color: {text_color};
     }}
     </style>
     """,
@@ -60,39 +56,26 @@ st.markdown(
 st.title("Dashboard de inteligencia digital")
 st.markdown("Visualización unificada de análisis en redes sociales y canales de alerta.")
 
-# --- Mensaje inicial adaptado a tema ---
-st.markdown(
-    f"""
-    <div style="
-        background-color: {tab_bg_color};
-        color: {text_color};
-        padding: 10px;
-        border-radius: 5px;
-        font-weight: bold;
-        margin-bottom: 15px;
-        ">
-        Selecciona una plataforma para ver sus métricas
-    </div>
-    """,
-    unsafe_allow_html=True
+# --- Menú lateral como pestañas ---
+selected_dashboard = st.sidebar.radio(
+    "Selecciona una plataforma",
+    ["Listening", "Analysis", "Benchmark", "Incidencias"]
 )
 
-# --- Menú de navegación (pestañas) ---
-tabs = st.tabs(["Listening", "Analysis", "Benchmark", "Incidencias"])
-
-# --- Contenido de cada pestaña ---
-with tabs[0]:
+# --- Contenido de cada sección ---
+if selected_dashboard == "Listening":
     st.header("Listening")
     render_facebook_dashboard()
 
-with tabs[1]:
+elif selected_dashboard == "Analysis":
     st.header("Analysis")
     render_x_dashboard()
 
-with tabs[2]:
+elif selected_dashboard == "Benchmark":
     st.header("Benchmark")
     render_benchmark_dashboard()
 
-with tabs[3]:
+elif selected_dashboard == "Incidencias":
     st.header("Incidencias")
     render_telegram_dashboard()
+
