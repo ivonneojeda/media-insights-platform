@@ -1,7 +1,5 @@
 # main_dashboard.py
 import streamlit as st
-from streamlit_extras.colored_header import colored_header
-from streamlit_extras.badges import badge
 
 # Importar dashboards individuales
 from dashboards.facebook.facebook_layout import render_facebook_dashboard
@@ -15,25 +13,32 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- SIDEBAR: selector de modo ---
-st.sidebar.title("Personalización de tema")
-theme = st.sidebar.radio("Selecciona un modo de vista", ["🌞 Claro", "🌚 Oscuro"], index=0)
+# --- Modo claro / oscuro ---
+theme = st.sidebar.radio("Selecciona un modo", ["Claro", "Oscuro"], index=0)
 
-# --- Definir colores según el tema seleccionado ---
-if "🌞" in theme:
+# --- Colores según modo ---
+if theme == "Claro":
     bg_color = "#FFFFFF"
-    text_color = "#1A1A1A"
-    header_color = "#0A66C2"
+    text_color = "#000000"
+    sidebar_bg = "#F0F2F6"
+    tab_bg = "#E0E0E0"
+    tab_active_bg = "#4A90E2"  # azul para pestaña activa
+    tab_text_color = "#000000"
+    tab_active_text = "#FFFFFF"
 else:
     bg_color = "#0E1117"
-    text_color = "#F5F5F5"
-    header_color = "#66B2FF"
+    text_color = "#FFFFFF"
+    sidebar_bg = "#11151C"
+    tab_bg = "#1C1F26"
+    tab_active_bg = "#1E90FF"  # azul para pestaña activa
+    tab_text_color = "#FFFFFF"
+    tab_active_text = "#FFFFFF"
 
-# --- Limpiar caché para asegurar que los cambios se apliquen ---
+# --- Limpiar caché ---
 st.cache_data.clear()
 st.cache_resource.clear()
 
-# --- Estilos CSS globales ---
+# --- Estilos CSS ---
 st.markdown(
     f"""
     <style>
@@ -41,63 +46,57 @@ st.markdown(
     .stApp {{
         background-color: {bg_color};
         color: {text_color};
-        transition: background-color 0.5s ease, color 0.5s ease;
     }}
 
-    /* Encabezados */
-    h1, h2, h3, h4, h5, h6 {{
+    /* Sidebar */
+    .css-1d391kg, .css-1oe6wy1 {{
+        background-color: {sidebar_bg};
         color: {text_color};
     }}
 
-    /* Pestañas */
-    div[data-baseweb="tab"] {{
-        color: {text_color};
-        font-weight: 500;
-        background-color: rgba(0,0,0,0.03);
-        border-radius: 10px 10px 0 0;
-        padding: 0.4em 1em;
-        margin-right: 0.3em;
+    /* Tabs */
+    .stTabs [role="tab"] {{
+        background-color: {tab_bg};
+        color: {tab_text_color};
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem 0.5rem 0 0;
+        margin-right: 0.25rem;
     }}
-    div[data-baseweb="tab"]:hover {{
-        background-color: rgba(100,100,100,0.1);
+    .stTabs [role="tab"]:hover {{
+        background-color: {tab_active_bg};
+        color: {tab_active_text};
     }}
-    div[data-baseweb="tab"][aria-selected="true"] {{
-        background-color: {header_color};
-        color: white !important;
-    }}
-
-    /* Texto y métricas */
-    .stMarkdown, .stText, .stDataFrame, .stMetric {{
-        color: {text_color};
+    .stTabs [role="tab"][aria-selected="true"] {{
+        background-color: {tab_active_bg};
+        color: {tab_active_text};
+        font-weight: bold;
     }}
 
-    /* Scrollbar más sutil */
-    ::-webkit-scrollbar {{
-        width: 6px;
+    /* Headers dentro de pestañas */
+    h1, h2, h3, h4 {{
+        color: {text_color};
     }}
-    ::-webkit-scrollbar-thumb {{
-        background-color: #999;
-        border-radius: 10px;
+
+    /* Texto general */
+    .stMarkdown, .stText {{
+        color: {text_color};
     }}
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# --- ENCABEZADO PRINCIPAL ---
-colored_header(
-    label="Dashboard Maestro de Inteligencia Digital",
-    description="Visualización unificada de análisis en redes sociales y canales de alerta.",
-    color_name="blue-70",
-)
+# --- Encabezado principal ---
+st.title("Dashboard de inteligencia digital")
+st.markdown("Visualización unificada de análisis en redes sociales y canales de alerta.")
 
-# --- MENSAJE INICIAL ---
-st.info("Selecciona una pestaña para explorar las métricas en tiempo real.")
+# --- Aviso inicial ---
+st.info("Selecciona una plataforma para ver sus métricas")
 
-# --- MENÚ DE NAVEGACIÓN ---
+# --- Menú de navegación (pestañas) ---
 tabs = st.tabs(["Listening", "Analysis", "Benchmark", "Incidencias"])
 
-# --- CONTENIDO DE CADA PESTAÑA ---
+# --- Contenido de cada pestaña ---
 with tabs[0]:
     st.header("Listening")
     render_facebook_dashboard()
