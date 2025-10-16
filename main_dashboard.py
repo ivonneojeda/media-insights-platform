@@ -15,48 +15,89 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Modo claro / oscuro ---
-theme = st.sidebar.radio("Selecciona un modo", ["Claro", "Oscuro"])
+# --- SIDEBAR: selector de modo ---
+st.sidebar.title("Personalización de tema")
+theme = st.sidebar.radio("Selecciona un modo de vista", ["🌞 Claro", "🌚 Oscuro"], index=0)
 
-# Ajuste de estilos según modo
-if theme == "Claro":
+# --- Definir colores según el tema seleccionado ---
+if "🌞" in theme:
     bg_color = "#FFFFFF"
-    text_color = "#000000"
+    text_color = "#1A1A1A"
+    header_color = "#0A66C2"
 else:
     bg_color = "#0E1117"
-    text_color = "#FFFFFF"
+    text_color = "#F5F5F5"
+    header_color = "#66B2FF"
 
-# Limpiar caché de Streamlit para evitar problemas de colores
+# --- Limpiar caché para asegurar que los cambios se apliquen ---
 st.cache_data.clear()
 st.cache_resource.clear()
 
-# --- Estilos CSS ---
+# --- Estilos CSS globales ---
 st.markdown(
     f"""
     <style>
+    /* Fondo general */
     .stApp {{
         background-color: {bg_color};
         color: {text_color};
+        transition: background-color 0.5s ease, color 0.5s ease;
     }}
-    .css-1d391kg {{
+
+    /* Encabezados */
+    h1, h2, h3, h4, h5, h6 {{
         color: {text_color};
+    }}
+
+    /* Pestañas */
+    div[data-baseweb="tab"] {{
+        color: {text_color};
+        font-weight: 500;
+        background-color: rgba(0,0,0,0.03);
+        border-radius: 10px 10px 0 0;
+        padding: 0.4em 1em;
+        margin-right: 0.3em;
+    }}
+    div[data-baseweb="tab"]:hover {{
+        background-color: rgba(100,100,100,0.1);
+    }}
+    div[data-baseweb="tab"][aria-selected="true"] {{
+        background-color: {header_color};
+        color: white !important;
+    }}
+
+    /* Texto y métricas */
+    .stMarkdown, .stText, .stDataFrame, .stMetric {{
+        color: {text_color};
+    }}
+
+    /* Scrollbar más sutil */
+    ::-webkit-scrollbar {{
+        width: 6px;
+    }}
+    ::-webkit-scrollbar-thumb {{
+        background-color: #999;
+        border-radius: 10px;
     }}
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# --- Encabezado principal ---
-st.title("Dashboard de inteligencia digital", anchor=None)
-st.markdown("Visualización unificada de análisis en redes sociales y canales de alerta.")
+# --- ENCABEZADO PRINCIPAL ---
+colored_header(
+    label="Dashboard Maestro de Inteligencia Digital",
+    description="Visualización unificada de análisis en redes sociales y canales de alerta.",
+    color_name="blue-70",
+)
 
-# --- Aviso inicial ---
-st.info("Selecciona una plataforma para ver sus métricas")
+# --- MENSAJE INICIAL ---
+st.info("Selecciona una pestaña para explorar las métricas en tiempo real.")
 
-# --- Menú de navegación (pestañas) ---
+# --- MENÚ DE NAVEGACIÓN ---
 tabs = st.tabs(["Listening", "Analysis", "Benchmark", "Incidencias"])
 
-# --- Contenido de cada pestaña ---
+# --- CONTENIDO DE CADA PESTAÑA ---
 with tabs[0]:
     st.header("Listening")
     render_facebook_dashboard()
@@ -72,6 +113,3 @@ with tabs[2]:
 with tabs[3]:
     st.header("Incidencias")
     render_telegram_dashboard()
-
-
-
