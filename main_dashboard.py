@@ -14,72 +14,42 @@ st.set_page_config(
 )
 
 # --- Modo claro / oscuro ---
-theme = st.sidebar.radio("Selecciona un modo", ["Claro", "Oscuro"], index=0)
+theme = st.sidebar.radio("Personalización de tema", ["Claro", "Oscuro"])
 
-# --- Colores según modo ---
+# Ajuste de estilos según modo
 if theme == "Claro":
     bg_color = "#FFFFFF"
     text_color = "#000000"
-    sidebar_bg = "#F0F2F6"
-    tab_bg = "#E0E0E0"
-    tab_active_bg = "#4A90E2"  # azul para pestaña activa
+    tab_bg_color = "#E0E0E0"
     tab_text_color = "#000000"
-    tab_active_text = "#FFFFFF"
 else:
     bg_color = "#0E1117"
     text_color = "#FFFFFF"
-    sidebar_bg = "#11151C"
-    tab_bg = "#1C1F26"
-    tab_active_bg = "#1E90FF"  # azul para pestaña activa
+    tab_bg_color = "#1B1B2F"
     tab_text_color = "#FFFFFF"
-    tab_active_text = "#FFFFFF"
 
-# --- Limpiar caché ---
+# --- Limpiar caché para evitar problemas de colores ---
 st.cache_data.clear()
 st.cache_resource.clear()
 
-# --- Estilos CSS ---
+# --- Estilos CSS generales ---
 st.markdown(
     f"""
     <style>
-    /* Fondo general */
+    /* Fondo y texto general */
     .stApp {{
         background-color: {bg_color};
         color: {text_color};
     }}
-
     /* Sidebar */
-    .css-1d391kg, .css-1oe6wy1 {{
-        background-color: {sidebar_bg};
+    .css-1d391kg, .css-1avcm0n {{
         color: {text_color};
     }}
-
-    /* Tabs */
-    .stTabs [role="tab"] {{
-        background-color: {tab_bg};
-        color: {tab_text_color};
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem 0.5rem 0 0;
-        margin-right: 0.25rem;
-    }}
-    .stTabs [role="tab"]:hover {{
-        background-color: {tab_active_bg};
-        color: {tab_active_text};
-    }}
-    .stTabs [role="tab"][aria-selected="true"] {{
-        background-color: {tab_active_bg};
-        color: {tab_active_text};
+    /* Ajuste de títulos de pestañas */
+    .css-1offfwp {{
+        background-color: {tab_bg_color} !important;
+        color: {tab_text_color} !important;
         font-weight: bold;
-    }}
-
-    /* Headers dentro de pestañas */
-    h1, h2, h3, h4 {{
-        color: {text_color};
-    }}
-
-    /* Texto general */
-    .stMarkdown, .stText {{
-        color: {text_color};
     }}
     </style>
     """,
@@ -90,8 +60,22 @@ st.markdown(
 st.title("Dashboard de inteligencia digital")
 st.markdown("Visualización unificada de análisis en redes sociales y canales de alerta.")
 
-# --- Aviso inicial ---
-st.info("Selecciona una plataforma para ver sus métricas")
+# --- Mensaje inicial adaptado a tema ---
+st.markdown(
+    f"""
+    <div style="
+        background-color: {tab_bg_color};
+        color: {text_color};
+        padding: 10px;
+        border-radius: 5px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        ">
+        Selecciona una plataforma para ver sus métricas
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # --- Menú de navegación (pestañas) ---
 tabs = st.tabs(["Listening", "Analysis", "Benchmark", "Incidencias"])
