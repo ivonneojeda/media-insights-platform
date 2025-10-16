@@ -1,5 +1,7 @@
 # main_dashboard.py
 import streamlit as st
+
+# Importar dashboards individuales
 from dashboards.facebook.facebook_layout import render_facebook_dashboard
 from dashboards.x_predictivo.x_layout import render_x_dashboard
 from dashboards.benchmark.benchmark_layout import render_benchmark_dashboard
@@ -11,57 +13,52 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- LIMPIAR CACHÉ (asegura carga limpia en Render) ---
-st.cache_data.clear()
-
-# --- BARRA SUPERIOR PERSONALIZADA ---
+# --- ESTILO DEL CONTENEDOR ---
+# Se puede cambiar el color de fondo del contenedor principal
 st.markdown(
     """
     <style>
-        .top-bar {
-            background-color: #0E1117;
-            padding: 1rem 2rem;
-            border-radius: 12px;
-            text-align: center;
-            color: white;
-            font-size: 1.3rem;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            margin-bottom: 1rem;
-        }
-        .top-bar.light {
-            background-color: #f3f3f3;
-            color: #222;
-        }
+    .main > div {
+        background-color: #F9F9F9;  /* Fondo claro */
+        padding: 1rem;
+        border-radius: 8px;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# --- SELECTOR DE MODO VISUAL ---
-modo = st.sidebar.radio("🎨 Modo de visualización", ["Oscuro", "Claro"])
-modo_css = "top-bar" if modo == "Oscuro" else "top-bar light"
-
-st.markdown(f'<div class="{modo_css}">Dashboard de Inteligencia Digital</div>', unsafe_allow_html=True)
+# --- ENCABEZADO PRINCIPAL ---
+st.title("Dashboard de inteligencia digital")
 st.markdown("Visualización unificada de análisis en redes sociales y canales de alerta.")
-st.info("Selecciona una plataforma para ver sus métricas.")
 
-# --- MENÚ DE NAVEGACIÓN ---
-tabs = st.tabs(["Listening", "Analysis", "Benchmark", "Incidencias"])
+# --- MENÚ LATERAL ---
+st.sidebar.title("Secciones del Dashboard")
+st.sidebar.markdown("Selecciona una plataforma para ver sus métricas:")
 
-# --- CONTENIDO DE CADA PESTAÑA ---
-with tabs[0]:
-    st.subheader("Dashboard de Listening")
+section = st.sidebar.radio(
+    "",
+    ["Listening", "Analysis", "Benchmark", "Incidencias"]
+)
+
+# --- CONTENIDO DE CADA SECCIÓN ---
+if section == "Listening":
+    st.subheader("Dashboard Listening")
+    st.markdown("Análisis de métricas y sentimiento en Facebook.")
     render_facebook_dashboard()
 
-with tabs[1]:
-    st.subheader("Dashboard de Analysis")
+elif section == "Analysis":
+    st.subheader("Dashboard Analysis")
+    st.markdown("Análisis predictivo de sentimiento y hashtags en X (Twitter).")
     render_x_dashboard()
 
-with tabs[2]:
+elif section == "Benchmark":
     st.subheader("Benchmark Institucional")
+    st.markdown("Comparativo de métricas entre diferentes redes sociales.")
     render_benchmark_dashboard()
 
-with tabs[3]:
-    st.subheader("Alertas e Incidencias")
+elif section == "Incidencias":
+    st.subheader("Alertas de riesgo")
+    st.markdown("Registro de alertas y nivel de riesgo de mensajes en Telegram.")
     render_telegram_dashboard()
+
