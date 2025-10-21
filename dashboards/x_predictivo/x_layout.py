@@ -140,12 +140,12 @@ def render_pyvis_graph(G, height=600):
 # -----------------------
 def render_x_dashboard():
     st.title("📊 X — Análisis predictivo de sentimiento y hashtags")
-    st.markdown(f"📁 Ruta esperada del CSV:<br> `{CSV_PATH}`", unsafe_allow_html=True)
+    
 
     try:
         df = load_data()
-        st.success(f"✅ Archivo cargado correctamente. Filas: {len(df)}")
-        st.write("Columnas:", list(df.columns))
+       
+        
     except FileNotFoundError as e:
         st.error(str(e))
         return
@@ -153,8 +153,8 @@ def render_x_dashboard():
         st.error(f"Error al leer CSV: {e}")
         return
 
-    st.subheader("Vista previa de datos")
-    st.dataframe(df.head(10))
+
+    
 
     missing_cols = [c for c in ["created_at", "sentiment", "text", "keywords"] if c not in df.columns]
     if missing_cols:
@@ -164,7 +164,7 @@ def render_x_dashboard():
 
     st.header("Pronóstico de sentimiento (Prophet)")
     df_hour = prepare_prophet_series(df, date_col="created_at", sentiment_col="sentiment", resample_freq="1H")
-    st.write("Datos procesados para Prophet:", df_hour.head())
+  
 
     fig_forecast, model = build_prophet_forecast(df_hour, periods=8, freq="H")
     st.plotly_chart(fig_forecast, use_container_width=True)
