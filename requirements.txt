@@ -14,6 +14,7 @@ networkx==3.5
 
 # Modelado y series temporales
 prophet==1.1.5
+cmdstanpy
 
 # Manejo de fechas
 python-dateutil==2.9.0.post0
