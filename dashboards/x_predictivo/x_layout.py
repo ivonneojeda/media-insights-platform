@@ -172,76 +172,84 @@ def render_gauge(df):
     st.plotly_chart(fig_gauge, use_container_width=True)
 
 # =======================================================
-# RENDERIZADO DE GRAFO INTERACTIVO (VERSIÓN ESTABLE)
+# RENDER INTERACTIVE GRAPH
 # =======================================================
-def render_interactive_graph(df_historico, selected_layers):
+def render_interactive_graph(df_historico, selected_layers, min_degree=1):
     """
-    Construye un grafo interactivo PyVis en memoria, estable para Streamlit.
-    Nodos con tamaño proporcional al grado y etiquetas también.
+    Construye y renderiza un grafo interactivo con PyVis.
+    - df_historico: DataFrame preparado
+    - selected_layers: Lista de capas ['Hashtags', 'Menciones (@)', 'Keywords']
+    - min_degree: Grado mínimo de conexiones para mostrar un nodo
     """
     import networkx as nx
     from pyvis.network import Network
+    import os
+    import numpy as np
+    import tempfile
 
-    if not selected_layers:
-        return "No hay capas seleccionadas para construir el grafo.", nx.Graph()
-
-    # 1. Construir grafo y clusterizar
-    G = build_filtered_graph(df_historico, selected_layers)
-    G = apply_clustering_and_coloring(G)
-
-    if G.number_of_nodes() == 0:
-        return "No hay suficientes nodos para graficar.", G
-
-    # 2. Crear red PyVis
-    net = Network(height="600px", width="100%", bgcolor=FIG_BG, font_color="white", notebook=False)
-    net.toggle_physics(True)
-
-    # Configurar física ForceAtlas2 personalizada
     try:
-        net.force_atlas_2based(
-            gravity=-50,
-            central_gravity=0.01,
-            spring_length=150,
-            spring_strength=0.08,
-            damping=0.4
-        )
-    except Exception:
-        pass
+        # === 1. Construcción del grafo base ===
+        G = build_filtered_graph(df_historico, selected_layers)
+        G = apply_clustering_and_coloring(G)
 
-    # 3. Agregar nodos y aristas con tamaño y etiquetas proporcionales
-    min_degree = 1  # mínimo para mostrar
-    for n, d in G.nodes(data=True):
-        degree = G.degree(n)
-        if degree >= min_degree:
-            node_size = max(10, int(np.log(degree + 1) * 15))  # tamaño proporcional
-            net.add_node(
-                n,
-                label=n,
-                title=f"{n} (Grado: {degree}, Cluster: {d.get('cluster_id')})",
-                size=node_size,
-                color=d.get('color'),
-                group=d.get('cluster_id')
+        if G.number_of_nodes() == 0:
+            return "No hay suficientes nodos para graficar.", nx.Graph()
+
+        # === 2. Configuración PyVis ===
+        net = Network(height="600px", width="100%", bgcolor=FIG_BG, font_color="white", notebook=False)
+        
+        # Añadimos nodos filtrando por grado mínimo
+        for n, d in G.nodes(data=True):
+            degree = G.degree(n)
+            if degree >= min_degree:
+                size = max(10, int(np.log(degree + 1) * 15))  # Tamaño proporcional al grado
+                net.add_node(
+                    n,
+                    label=n,
+                    title=f"{n} (Grado: {degree}, Cluster: {d.get('cluster_id')})",
+                    size=size,
+                    color=d.get('color'),
+                    font={'size': min(size + 2, 32)},  # Fuente proporcional al nodo
+                    group=d.get('cluster_id')
+                )
+
+        # Filtrar aristas visibles
+        visible_nodes = [n for n, d in G.nodes(data=True) if G.degree(n) >= min_degree]
+        for u, v, attrs in G.edges(data=True):
+            if u in visible_nodes and v in visible_nodes:
+                weight = attrs.get("weight", 1)
+                net.add_edge(u, v, value=weight, title=f"Co-ocurrencia: {weight}")
+
+        # === 3. Física y opciones ===
+        net.toggle_physics(True)
+        try:
+            net.force_atlas_2based(
+                gravity=-30000,        # Ajuste más estable
+                central_gravity=0.05,
+                spring_length=100,
+                spring_strength=0.05,
+                damping=0.5
             )
+        except Exception:
+            pass
+        net.options.edges.smooth = {'enabled': True}
+        net.options.interaction = {'hover': True}
 
-    for u, v, attrs in G.edges(data=True):
-        weight = attrs.get("weight", 1)
-        net.add_edge(u, v, value=weight, title=f"Co-ocurrencia: {weight}")
+        # === 4. Renderizado seguro en memoria sin dejar archivos ===
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmp_file:
+            tmp_path = tmp_file.name
+        try:
+            net.save_graph(tmp_path)
+            with open(tmp_path, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            return html_content, G
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
-    # 4. Configuración final PyVis
-    net.options.edges.smooth = {'enabled': True}
-    net.options.interaction = {'hover': True}
-    net.set_options("""
-        var options = {
-            "physics": {"enabled": true}
-        };
-    """)
-
-    # 5. Generar HTML en memoria (sin guardar archivo)
-    try:
-        html_content = net.generate_html()
-        return html_content, G
     except Exception as e:
         return f"Error al generar el grafo: {e}", nx.Graph()
+
 
 
 # ------------------------
@@ -280,49 +288,29 @@ def render_x_dashboard():
 
     st.markdown("---")
 
-    # Grafo
-    st.header("🌐 Grafo de Relaciones y Temas")
-    col_h, col_m, col_k = st.columns(3)
-    selected_layers = []
-    with col_h:
-        if st.checkbox("Hashtags (#)", value=True):
-            selected_layers.append('Hashtags')
-    with col_m:
-        if st.checkbox("Menciones (@)", value=True):
-            selected_layers.append('Menciones (@)')
-    with col_k:
-        if st.checkbox("Keywords", value=True):
-            selected_layers.append('Keywords')
+    st.subheader("🌐 Grafo de Relaciones y Temas")
 
+    # Selección de capas
+    default_layers = ['Hashtags', 'Menciones (@)', 'Keywords']
+    selected_layers = st.multiselect("Selecciona capas de datos:", options=default_layers, default=default_layers)
     if not selected_layers:
-        st.info("Por favor, selecciona al menos una capa de datos para construir el grafo.")
-        return
+        st.info("Selecciona al menos una capa para construir el grafo.")
+        st.stop()
 
-    # Calcular grado máximo para el slider (protección si grafo vacío)
-    G_tmp = build_filtered_graph(df_historico, selected_layers)
-    max_degree = 3
-    if G_tmp.number_of_nodes() > 0:
-        max_degree = max(3, max([G_tmp.degree(n) for n in G_tmp.nodes()]))
-    min_degree = st.slider(
-        "Mínimo de conexiones (Grado) a mostrar:",
-        1,
-        max_degree,
-        2,
-        help="Este filtro ayuda a visualizar solo los nodos más relevantes."
-    )
+    # Slider para filtrar por grado mínimo
+    min_deg = st.slider("Mínimo de conexiones (Grado) a mostrar:", 1, 5, 1)
 
-    # Generar grafo con el min_degree seleccionado
-    html_content, G_full = render_interactive_graph(df_historico, selected_layers, min_degree=min_degree)
+    # Llamada al render
+    html_content, G_full = render_interactive_graph(df_historico, selected_layers, min_degree=min_deg)
 
     if isinstance(html_content, str) and html_content.startswith("Error"):
         st.error(html_content)
-        return
-    if not isinstance(G_full, nx.Graph) or G_full.number_of_nodes() == 0:
-        st.info("No hay suficientes datos o conexiones para mostrar el grafo con las capas seleccionadas.")
-        return
+    elif G_full.number_of_nodes() == 0:
+        st.info("No hay suficientes nodos para mostrar con el filtro actual.")
+    else:
+        st.write(f"Nodos: **{len(G_full.nodes())}**, Enlaces: **{len(G_full.edges())}**")
+        st.components.v1.html(html_content, height=600, scrolling=True)
 
-    st.write(f"Nodos: **{len(G_full.nodes())}**, Enlaces: **{len(G_full.edges())}**")
-    st.components.v1.html(html_content, height=700, scrolling=True)
 
 # ------------------------
 # RUN
