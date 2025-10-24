@@ -395,7 +395,6 @@ def render_interactive_graph(df_historico, selected_layers):
 # =======================================================
 
 def render_x_dashboard():
-    st.set_page_config(layout="wide") # Para que use todo el ancho de la pantalla
     st.title("🗣️ Análisis de Sentimiento y Conversación de X")
     st.markdown("---")
     
@@ -491,4 +490,5 @@ def render_x_dashboard():
 
 # Ejecución 
 if __name__ == "__main__":
+    st.set_page_config(layout="wide", page_title="X Dashboard")
     render_x_dashboard()
