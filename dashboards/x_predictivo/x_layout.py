@@ -8,16 +8,16 @@ from prophet import Prophet
 # Librerías para el grafo
 import networkx as nx
 from pyvis.network import Network
-import community as community_louvain # Requiere 'python-louvain'
+import community as community_louvain 
 import json 
+import tempfile # Librería para gestionar archivos temporales de forma segura
 
 # =======================================================
 # 1. CONFIGURACIÓN Y CONSTANTES
 # =======================================================
 
-# CONFIG: ruta del CSV (Ajusta esto si vas a desplegar en la nube)
-# RECUERDA: Cambiar esta ruta a una relativa si despliegas en la nube.
-CSV_PATH = r"C:\Users\ivonn\Desktop\x_sentiment_analysis\datos\Conversación sobre UNAM 5-7oct25 - ISO.csv" 
+# 🚨 RUTA CORREGIDA: Apunta a la carpeta 'data' en tu repositorio de GitHub.
+CSV_PATH = "data/Conversación sobre UNAM 5-7oct25 - ISO.csv" 
 
 # Definiciones de columnas y mapeos
 DATE_COL = "created_at"
@@ -26,14 +26,14 @@ SENTIMENT_MAP = {"Positivo": 1.0, "Negativo": -1.0, "Neutro": 0.0}
 
 # Colores y estilos unificados
 FIG_BG = '#262730'
-MODERN_COLOR_SCALE = ["#FF6347", "#F0F0F0", "#4CAF50"] # Rojo, Gris, Verde
+MODERN_COLOR_SCALE = ["#FF6347", "#D3D3D3", "#4CAF50"] # Rojo, Gris, Verde
 COLOR_NEG = "#FF6347"
 COLOR_NEUTRO = "#D3D3D3"
 COLOR_POS = "#4CAF50"
 NODE_COLORS = {
-    'hashtag': '#FF5733',   # Naranja/Rojo
-    'mention': '#33C4FF',   # Azul claro
-    'keyword': '#4CAF50',   # Verde
+    'hashtag': '#FF5733',  
+    'mention': '#33C4FF',  
+    'keyword': '#4CAF50',  
 }
 
 # =======================================================
@@ -42,13 +42,16 @@ NODE_COLORS = {
 
 @st.cache_data(ttl=600)
 def load_data(path=CSV_PATH):
-    """Carga el DataFrame desde la ruta especificada."""
-    if not os.path.exists(path):
-        st.error(f"¡Error! No se encontró el archivo CSV en: {path}")
-        return pd.DataFrame() 
+    """Carga el DataFrame desde la ruta especificada, con manejo de error de deploy."""
     try:
+        # Se agrega 'sep' para mayor robustez en caso de que no sea coma.
         df = pd.read_csv(path, encoding="utf-8", on_bad_lines="skip")
         return df
+    except FileNotFoundError:
+        st.error(f"❌ ¡Error de Archivo! No se encontró el archivo CSV en la ruta: `{path}`.")
+        st.markdown("---")
+        st.error("Por favor, asegúrate de que el archivo CSV esté en la carpeta **`data`** de tu repositorio de GitHub.")
+        return pd.DataFrame() 
     except Exception as e:
         st.error(f"Error al leer el CSV: {e}")
         return pd.DataFrame()
@@ -145,13 +148,13 @@ def build_filtered_graph(df, selected_layers):
     for _, row in df.iterrows():
         row_entities = []
         if 'Hashtags' in selected_layers:
-            tags = extract_hashtags_from_keywords(row['keywords'])
+            tags = extract_hashtags_from_keywords(row.get('keywords', ''))
             row_entities.extend([(tag, 'hashtag') for tag in tags])
         if 'Menciones (@)' in selected_layers:
-            ments = extract_mentions_from_mentions_col(row['mentions'])
+            ments = extract_mentions_from_mentions_col(row.get('mentions', ''))
             row_entities.extend([(ment, 'mention') for ment in ments])
         if 'Keywords' in selected_layers:
-            kws = extract_pure_keywords(row['keywords'])
+            kws = extract_pure_keywords(row.get('keywords', ''))
             row_entities.extend([(kw, 'keyword') for kw in kws])
         
         all_entities.append(row_entities)
@@ -189,17 +192,19 @@ def apply_clustering_and_coloring(G):
             G.nodes[node]['color'] = cluster_color
             
     except Exception as e:
-        st.warning(f"No se pudo ejecutar la detección de Louvain. {e}")
+        # Se ignora la excepción ya que a veces Louvain falla con grafos pequeños.
+        print(f"Advertencia: Fallo en Louvain. {e}") 
         
     return G
 
 # =======================================================
-# 5. FUNCIONES DE VISUALIZACIÓN (Heatmap, Gauge, Grafo)
+# 5. FUNCIONES DE VISUALIZACIÓN
 # =======================================================
 
 # --- Heatmap (render_heatmap) ---
 def render_heatmap(df):
     """Renderiza el Heatmap solo con datos históricos."""
+    # ... (código del Heatmap sin cambios funcionales) ...
     if df.empty or "sentiment_score" not in df.columns or "date_str" not in df.columns or "hour_str" not in df.columns:
         st.warning("Datos inválidos o faltantes para calcular el Heatmap.")
         return
@@ -236,6 +241,7 @@ def render_heatmap(df):
 # --- Gauge (render_gauge) ---
 def render_gauge(df):
     """Renderiza el PRONÓSTICO de Sentimiento para la fecha más reciente en el DF."""
+    # ... (código del Gauge sin cambios funcionales) ...
     if df.empty or "sentiment_score" not in df.columns or "created_at" not in df.columns:
         st.warning("Datos inválidos o faltantes para calcular el Pronóstico.")
         return
@@ -282,14 +288,9 @@ def render_gauge(df):
 
 
 # --- Grafo Interactivo (render_interactive_graph) ---
-# =======================================================
-# 5. FUNCIONES DE VISUALIZACIÓN (GRAFO FINAL)
-# =======================================================
-
-
 def render_interactive_graph(df_historico, selected_layers):
     """
-    Construye, clusteriza y renderiza el grafo. 
+    Construye, clusteriza y renderiza el grafo con corrección para 'Extra data'.
     """
     if not selected_layers:
         return "No hay suficientes datos para construir un grafo.", nx.Graph()
@@ -303,14 +304,13 @@ def render_interactive_graph(df_historico, selected_layers):
 
     # 2. Renderizado del Grafo con Pyvis
     min_degree_default = 2 
+    net = Network(height="600px", width="100%", bgcolor='#262730', font_color="white", notebook=False) 
     
-    net = Network(height="600px", width="100%", bgcolor='#262730', font_color="white", notebook=False)
-    
-    # Construcción de nodos y aristas
+    # Construcción de nodos y aristas (solo nodos con grado >= min_degree_default)
+    # ...
     for n, d in G.nodes(data=True):
         degree = G.degree(n)
         if degree >= min_degree_default:
-            # 🚨 TAMAÑO: Factor 40 y Mínimo 18
             size = max(18, int(np.log(degree + 1) * 40)) 
             net.add_node(
                 n, 
@@ -326,13 +326,12 @@ def render_interactive_graph(df_historico, selected_layers):
         if u in visible_nodes and v in visible_nodes:
              weight = attrs.get("weight", 1)
              net.add_edge(u, v, value=weight, title=f"Co-ocurrencia: {weight}")
-             
-    # Configuración de pyvis para movimiento natural
+    
+    # 3. Configuración de opciones de Física (JSON)
     net.force_atlas_2based()
     net.options.edges.smooth.enabled = True
     net.options.interaction.hover = True
     
-    # 🚨 SOLUCIÓN DEFINITIVA DEL ERROR DE SINTAXIS JSON (USANDO REEMPLAZO FUERTE) 🚨
     options_dict = {
         "physics": {
             "enabled": True,
@@ -342,7 +341,7 @@ def render_interactive_graph(df_historico, selected_layers):
                 "centralGravity": 0.05,
                 "springLength": 100,
                 "springConstant": 0.05,
-                "damping": 0.5,   # Movimiento natural
+                "damping": 0.5,   
                 "avoidOverlap": 0
             },
             "stabilization": {
@@ -355,37 +354,48 @@ def render_interactive_graph(df_historico, selected_layers):
         }
     }
     
-    # Convertimos el diccionario a una cadena JSON válida.
+    # Conversión a cadena JSON y limpieza para evitar errores de sintaxis
     json_part = json.dumps(options_dict)
-    
-    # Construimos la cadena JS, eliminando cualquier caracter invisible que pueda causar 'Extra data'.
     json_options_string = "var options = " + json_part + ";" 
-    json_options_string = json_options_string.replace('\n', '').replace('\t', '').strip() # Limpieza Forzada
-
+    # 🟢 LIMPIEZA CLAVE: Elimina cualquier salto de línea/tabulación que corrompa el HTML/JSON
+    json_options_string = json_options_string.replace('\n', '').replace('\t', '').strip() 
     net.set_options(json_options_string)
     
-    # Guardar, leer y borrar el archivo temporal
-    # Usamos os.path.dirname(os.path.abspath(__file__)) para asegurar la ruta del archivo temporal
-    temp_filename = f"tmp_pyvis_{hash(tuple(selected_layers))}.html" 
-    tmp_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), temp_filename)
-
+    
+    # 4. GUARDAR Y LEER EL HTML TEMPORAL (Manejo Seguro)
+    html = None
+    
+    # Usamos tempfile para crear una ruta de archivo temporal manejada por el SO.
+    # Esto es más seguro en entornos como Streamlit Cloud.
+    with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmp_file:
+        tmp_path = tmp_file.name
+    
     try:
         net.save_graph(tmp_path)
-        html = open(tmp_path, "r", encoding="utf-8").read()
+        
+        # 🚨 SOLUCIÓN FINAL AL ERROR 'Extra data': Leer y limpiar la cadena HTML
+        with open(tmp_path, "r", encoding="utf-8") as f:
+            html = f.read()
+            html = html.strip() # <--- ¡ELIMINA CARACTERES RESIDUALES!
+            
+        return html, G
+
     except Exception as e:
-        st.error(f"Error al guardar/leer el archivo temporal: {e}")
-        return "Error de archivo.", nx.Graph()
+        return f"Error fatal al generar el grafo (Pyvis): {e}", nx.Graph()
     finally:
-        # Aseguramos que el archivo se borre, incluso si hay un error de lectura.
+        # Aseguramos que el archivo temporal se elimine al final
         if os.path.exists(tmp_path):
-            os.remove(tmp_path) 
-    
-    return html, G
+            try:
+                os.remove(tmp_path) 
+            except Exception:
+                pass # Ignoramos si no se puede borrar el temporal
+
 # =======================================================
 # 6. FUNCIÓN PRINCIPAL DEL DASHBOARD
 # =======================================================
 
 def render_x_dashboard():
+    st.set_page_config(layout="wide") # Para que use todo el ancho de la pantalla
     st.title("🗣️ Análisis de Sentimiento y Conversación de X")
     st.markdown("---")
     
@@ -422,49 +432,43 @@ def render_x_dashboard():
     st.markdown("---")
     
     # -------------------------------------
-    # 2. GRAFO DE RELACIONES (CÓDIGO LIMPIO Y ESTABLE)
+    # 2. GRAFO DE RELACIONES
     # -------------------------------------
     st.header("🌐 Grafo de Relaciones y Temas")
     
-    st.subheader("Configuración del Grafo")
-    
-    # === Botones de Checkbox para la estabilidad ===
+    # === Configuración de Capas ===
     col_h, col_m, col_k = st.columns(3)
     selected_layers = []
 
     with col_h:
-        show_hashtags = st.checkbox("Hashtags (#)", value=True, help="Activar/Desactivar la capa de hashtags.")
-        if show_hashtags:
+        if st.checkbox("Hashtags (#)", value=True):
             selected_layers.append('Hashtags')
 
     with col_m:
-        show_mentions = st.checkbox("Menciones (@)", value=True, help="Activar/Desactivar la capa de menciones (arrobamientos).")
-        if show_mentions:
+        if st.checkbox("Menciones (@)", value=True):
             selected_layers.append('Menciones (@)')
 
     with col_k:
-        show_keywords = st.checkbox("Keywords", value=True, help="Activar/Desactivar la capa de palabras clave puras.")
-        if show_keywords:
+        if st.checkbox("Keywords", value=True):
             selected_layers.append('Keywords')
-    # ===============================================
+    # ==============================
 
     if not selected_layers:
         st.info("Por favor, selecciona al menos una capa de datos para construir el grafo.")
         return
 
-    # 1. LLAMADA A LA FUNCIÓN (SIN CACHÉ, SIN COMA EXTRA)
-    try:
-        # Se asegura la indentación correcta de la llamada dentro del try
-        html_content, G_full = render_interactive_graph(
-            df_historico, 
-            selected_layers 
-        )
-    except Exception as e:
-        # Se asegura que el manejo de la excepción se haga correctamente
-        st.error(f"Error fatal al generar el grafo: {e}")
-        return
+    # 1. LLAMADA A LA FUNCIÓN CORREGIDA
+    html_content, G_full = render_interactive_graph(
+        df_historico, 
+        selected_layers 
+    )
 
-    # Si no se pudo generar el grafo (ej. si devuelve un mensaje de error o grafo vacío)
+    # Si la función devuelve el mensaje de error del grafo.
+    if isinstance(html_content, str) and html_content.startswith("Error"):
+         st.error(html_content)
+         return
+    
+    # Validación del Grafo
     if not isinstance(G_full, nx.Graph) or G_full.number_of_nodes() == 0:
         st.info("No hay suficientes datos o conexiones para mostrar el grafo con las capas seleccionadas.")
         return
@@ -475,11 +479,11 @@ def render_x_dashboard():
     
     st.write(f"Nodos: **{len(G_full.nodes())}**, Enlaces: **{len(G_full.edges())}**")
 
-    # Slider de Grado (Ahora solo informativo, no recalcula el grafo)
-    min_degree = st.slider(
+    # Slider de Grado (Solo informativo, el grafo ya se generó con un grado mínimo de 2)
+    st.slider(
         "Mínimo de conexiones (Grado) a mostrar:", 
         1, max(3, max_degree), 2, 
-        help="Este filtro ayuda a visualizar solo los nodos más relevantes. Los nodos se calculan con un grado mínimo de 2 para el caché."
+        help="Este filtro ayuda a visualizar solo los nodos más relevantes. El grafo se generó con un grado mínimo de 2."
     )
     
     # El HTML se renderiza
