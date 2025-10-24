@@ -171,53 +171,78 @@ def render_gauge(df):
     fig_gauge.add_annotation(text=sentiment_label, x=0.5, y=0.25, showarrow=False, font=dict(size=18,color="white"))
     st.plotly_chart(fig_gauge, use_container_width=True)
 
-# ------------------------
-# GRAFO INTERACTIVO (SIN GUARDAR ARCHIVO)
-# ------------------------
-def render_interactive_graph(df_historico, selected_layers, min_degree=2):
-    try:
-        G = build_filtered_graph(df_historico, selected_layers)
-        G = apply_clustering_and_coloring(G)
-        if G.number_of_nodes() == 0:
-            return "Error: No se generó ningún nodo. Verifica tus filtros o datos.", nx.Graph()
+# =======================================================
+# RENDERIZADO DE GRAFO INTERACTIVO (VERSIÓN ESTABLE)
+# =======================================================
+def render_interactive_graph(df_historico, selected_layers):
+    """
+    Construye un grafo interactivo PyVis en memoria, estable para Streamlit.
+    Nodos con tamaño proporcional al grado y etiquetas también.
+    """
+    import networkx as nx
+    from pyvis.network import Network
 
-        net = Network(height="600px", width="100%", bgcolor="#FFFFFF", font_color="#2B2B2B", notebook=False, directed=False)
-        
-        # Agregar solo nodos visibles según min_degree
-        visible_nodes = [n for n in G.nodes() if G.degree(n) >= min_degree]
-        for n in visible_nodes:
-            d = G.nodes[n]
-            degree = int(G.degree(n))
-            size = max(10, int(np.log(degree + 1) * 20))
+    if not selected_layers:
+        return "No hay capas seleccionadas para construir el grafo.", nx.Graph()
+
+    # 1. Construir grafo y clusterizar
+    G = build_filtered_graph(df_historico, selected_layers)
+    G = apply_clustering_and_coloring(G)
+
+    if G.number_of_nodes() == 0:
+        return "No hay suficientes nodos para graficar.", G
+
+    # 2. Crear red PyVis
+    net = Network(height="600px", width="100%", bgcolor=FIG_BG, font_color="white", notebook=False)
+    net.toggle_physics(True)
+
+    # Configurar física ForceAtlas2 personalizada
+    try:
+        net.force_atlas_2based(
+            gravity=-50,
+            central_gravity=0.01,
+            spring_length=150,
+            spring_strength=0.08,
+            damping=0.4
+        )
+    except Exception:
+        pass
+
+    # 3. Agregar nodos y aristas con tamaño y etiquetas proporcionales
+    min_degree = 1  # mínimo para mostrar
+    for n, d in G.nodes(data=True):
+        degree = G.degree(n)
+        if degree >= min_degree:
+            node_size = max(10, int(np.log(degree + 1) * 15))  # tamaño proporcional
             net.add_node(
                 n,
                 label=n,
                 title=f"{n} (Grado: {degree}, Cluster: {d.get('cluster_id')})",
-                size=size,
-                color=d.get('color', '#888888'),
-                group=d.get('cluster_id', 0)
+                size=node_size,
+                color=d.get('color'),
+                group=d.get('cluster_id')
             )
 
-        # Agregar aristas entre nodos visibles
-        for u, v, attrs in G.edges(data=True):
-            if u in visible_nodes and v in visible_nodes:
-                net.add_edge(u, v, value=attrs.get('weight',1), title=f"Co-ocurrencia: {attrs.get('weight',1)}")
+    for u, v, attrs in G.edges(data=True):
+        weight = attrs.get("weight", 1)
+        net.add_edge(u, v, value=weight, title=f"Co-ocurrencia: {weight}")
 
-        # Física y opciones
-        net.toggle_physics(True)
-        try:
-            net.force_atlas_2based()
-        except Exception:
-            pass
-        net.options.edges.smooth = {'enabled': True}
-        net.options.interaction = {'hover': True}
+    # 4. Configuración final PyVis
+    net.options.edges.smooth = {'enabled': True}
+    net.options.interaction = {'hover': True}
+    net.set_options("""
+        var options = {
+            "physics": {"enabled": true}
+        };
+    """)
 
-        # Generar HTML en memoria (sin archivos temporales)
+    # 5. Generar HTML en memoria (sin guardar archivo)
+    try:
         html_content = net.generate_html()
         return html_content, G
-
     except Exception as e:
-        return f"Error al generar el grafo: {e}", None
+        return f"Error al generar el grafo: {e}", nx.Graph()
+
 
 # ------------------------
 # DASHBOARD (UN SOLO RENDER)
