@@ -12,7 +12,7 @@ import shutil
 import tempfile
 from pyvis.network import Network
 import community as community_louvain
-
+import math
 # ------------------------
 # CONFIG
 # ------------------------
@@ -177,81 +177,149 @@ def render_gauge(df):
 
 def render_interactive_graph(df_historico, selected_layers, min_degree=2):
     """
-    Construye un grafo interactivo para Streamlit con PyVis.
-    Nodos visibles según min_degree y etiquetas escaladas.
+    Construye un grafo interactivo con PyVis listo para Streamlit y estable para deploy.
+    - df_historico: DataFrame preparado (debe contener las columnas que usan tus funciones de extracción)
+    - selected_layers: lista con capas a incluir ['Hashtags','Menciones (@)','Keywords']
+    - min_degree: grado mínimo para mostrar un nodo
+    Retorna: (html_string, G) o ("Error: ...", None)
     """
-    if not selected_layers or df_historico.empty:
-        return "No hay suficientes datos para construir un grafo.", nx.Graph()
 
-    # 1️⃣ Construir y clusterizar
-    G = build_filtered_graph(df_historico, selected_layers)
-    G = apply_clustering_and_coloring(G)
 
-    if G.number_of_nodes() == 0:
-        return "No hay suficientes nodos para construir un grafo.", G
+    # --- 0) Validaciones rápidas ---
+    if df_historico is None or df_historico.empty:
+        return "Error: DataFrame vacío o no proporcionado.", None
+    if not selected_layers:
+        return "Error: No hay capas seleccionadas para construir el grafo.", None
 
-    # 2️⃣ Configuración PyVis
-    net = Network(height="600px", width="100%", bgcolor="#262730", font_color="white", notebook=False)
-    
-    # Ajustar nodos visibles según grado mínimo
-    for n, d in G.nodes(data=True):
-        degree = G.degree(n)
-        if degree >= min_degree:
-            size = max(12, int(np.log(degree + 1) * 20))  # Escalado dinámico del nodo
-            label_size = max(10, int(size * 0.7))          # Label proporcional al nodo
-            net.add_node(
-                n,
-                label=n,
-                title=f"{n} (Grado: {degree}, Cluster: {d.get('cluster_id')})",
-                size=size,
-                font={"size": label_size, "face": "arial"},
-                color=d.get('color'),
-                group=d.get('cluster_id')
+    try:
+        # --- 1) Limpiar restos problemáticos (./lib) si existen ---
+        try:
+            if os.path.exists("./lib") and os.path.isdir("./lib"):
+                shutil.rmtree("./lib")
+        except Exception:
+            # No fatal: si no se puede borrar, continuamos y confiamos en temp files
+            pass
+
+        # --- 2) Construir y clusterizar grafo (usa tus funciones existentes) ---
+        G = build_filtered_graph(df_historico, selected_layers)
+        G = apply_clustering_and_coloring(G)
+
+        if not isinstance(G, nx.Graph) or G.number_of_nodes() == 0:
+            return "Error: No se generó ningún nodo. Verifica tus datos y capas seleccionadas.", None
+
+        # --- 3) Crear objeto PyVis ---
+        net = Network(height="700px", width="100%", bgcolor="#262730", font_color="white", notebook=False, directed=False)
+
+        # --- 4) Añadir nodos y aristas filtrando por min_degree ---
+        visible_nodes = []
+        for n, d in G.nodes(data=True):
+            deg = G.degree(n)
+            if deg >= min_degree:
+                visible_nodes.append(n)
+
+                # Tamaño y fuente proporcionales, con min/max
+                node_size = max(12, min(int(math.log(deg + 1) * 20), 60))   # entre 12 y 60
+                font_size = max(10, min(node_size * 2 // 3, 28))            # entre 10 y 28
+
+                net.add_node(
+                    n,
+                    label=n,
+                    title=f"{n} (Grado: {deg}, Cluster: {d.get('cluster_id')})",
+                    size=node_size,
+                    color=d.get('color', '#888888'),
+                    font={'size': font_size, 'face': 'Arial', 'color': '#FFFFFF'},
+                    group=d.get('cluster_id', 0)
+                )
+
+        # Agregar aristas solo entre nodos visibles
+        for u, v, attrs in G.edges(data=True):
+            if u in visible_nodes and v in visible_nodes:
+                weight = attrs.get('weight', 1)
+                net.add_edge(u, v, value=weight, title=f"Co-ocurrencia: {weight}")
+
+        # --- 5) Física estable con ForceAtlas2 y opciones JS vía set_options ---
+        net.toggle_physics(True)
+        try:
+            # Parámetros de ForceAtlas2 (ajustables si quieres más/menos separación)
+            net.force_atlas_2based(
+                gravity=-40,           # negativo => repulsión/compactación controlada
+                central_gravity=0.02,  # atrae hacia el centro con intensidad baja
+                spring_length=150,     # longitud "ideal" de aristas
+                spring_strength=0.05,  # rigidez de las aristas
+                damping=0.6,           # amortiguación para que estabilice rápido
+                overlap=0.5            # intentar evitar solapamientos
             )
-    
-    # Agregar solo aristas cuyos nodos sean visibles
-    visible_nodes = [n for n, d in G.nodes(data=True) if G.degree(n) >= min_degree]
-    for u, v, attrs in G.edges(data=True):
-        if u in visible_nodes and v in visible_nodes:
-            weight = attrs.get("weight", 1)
-            net.add_edge(u, v, value=weight, title=f"Co-ocurrencia: {weight}")
-
-    # 3️⃣ Física y distribución inicial más estable
-    net.toggle_physics(True)
-    try:
-        net.force_atlas_2based(
-            gravity=-20000,      # nodos se separan más
-            central_gravity=0.05,
-            spring_length=200,   # longitud de resorte más amplia
-            spring_strength=0.05,
-            damping=0.4
-        )
-    except Exception:
-        pass
-
-    # Suavizar aristas y permitir hover
-    net.options.edges.smooth = {"enabled": True}
-    net.options.interaction = {"hover": True}
-
-    # 4️⃣ Guardado temporal para Streamlit
-    html = None
-    with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmp_file:
-        tmp_path = tmp_file.name
-    try:
-        net.save_graph(tmp_path)
-        with open(tmp_path, "r", encoding="utf-8") as f:
-            html = f.read()
-    except Exception as e:
-        return f"Error al generar el grafo: {e}", nx.Graph()
-    finally:
-        if os.path.exists(tmp_path):
+        except Exception:
+            # Si la versión de pyvis no soporta parámetros, no es fatal
             try:
-                os.remove(tmp_path)
+                net.force_atlas_2based()
             except Exception:
                 pass
 
-    return html, G
+        # Opciones JS/JSON inyectadas en el HTML (valores coherentes con ForceAtlas2)
+        js_options = """
+var options = {
+  "nodes": {
+    "font": { "size": 18, "strokeWidth": 3 },
+    "scaling": { "min": 10, "max": 60 }
+  },
+  "edges": {
+    "color": { "inherit": true },
+    "smooth": { "enabled": true, "type": "dynamic" },
+    "width": 1
+  },
+  "physics": {
+    "enabled": true,
+    "solver": "forceAtlas2Based",
+    "forceAtlas2Based": {
+      "gravitationalConstant": -40,
+      "centralGravity": 0.02,
+      "springLength": 150,
+      "springConstant": 0.05,
+      "damping": 0.6,
+      "avoidOverlap": 0.5
+    },
+    "stabilization": { "enabled": true, "iterations": 400, "fit": true }
+  },
+  "interaction": {
+    "hover": true,
+    "tooltipDelay": 100,
+    "zoomView": true,
+    "dragNodes": true
+  }
+};
+"""
+        net.set_options(js_options)
 
+        # show_buttons es útil para depuración; no es fatal si falla
+        try:
+            net.show_buttons(filter_=['physics'])
+        except Exception:
+            pass
+
+        # --- 6) Generar HTML en archivo temporal de forma segura ---
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        try:
+            net.save_graph(tmp_path)
+            # Leer HTML en memoria
+            with open(tmp_path, "r", encoding="utf-8") as f:
+                html = f.read()
+        finally:
+            # Intentar eliminar temporal (si falla, no interrumpimos la app)
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
+
+        # --- 7) Retornar HTML y grafo ---
+        return html, G
+
+    except Exception as e:
+        # Capturamos cualquier otro fallo y lo devolvemos claramente
+        return f"Error al generar el grafo: {e}", None
 
 # ------------------------
 # DASHBOARD (UN SOLO RENDER)
