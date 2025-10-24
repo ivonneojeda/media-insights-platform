@@ -223,7 +223,7 @@ def render_interactive_graph(df_historico, selected_layers, min_degree=2):
 # DASHBOARD (UN SOLO RENDER)
 # ------------------------
 def render_x_dashboard():
-    st.set_page_config(layout="wide", page_title="X Dashboard")
+   
     st.title("🗣️ Análisis de Sentimiento y Conversación de X")
     st.markdown("---")
 
