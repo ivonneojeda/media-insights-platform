@@ -178,148 +178,126 @@ def render_gauge(df):
 def render_interactive_graph(df_historico, selected_layers, min_degree=2):
     """
     Construye un grafo interactivo con PyVis listo para Streamlit y estable para deploy.
-    - df_historico: DataFrame preparado (debe contener las columnas que usan tus funciones de extracción)
-    - selected_layers: lista con capas a incluir ['Hashtags','Menciones (@)','Keywords']
-    - min_degree: grado mínimo para mostrar un nodo
-    Retorna: (html_string, G) o ("Error: ...", None)
     """
-
+    import os
+    import shutil
+    import tempfile
+    import networkx as nx
+    from pyvis.network import Network
+    import math
+    import json
+    from pathlib import Path
 
     # --- 0) Validaciones rápidas ---
     if df_historico is None or df_historico.empty:
-        return "Error: DataFrame vacío o no proporcionado.", None
+        return "Error: DataFrame vacío o no proporcionado.", nx.Graph()
     if not selected_layers:
-        return "Error: No hay capas seleccionadas para construir el grafo.", None
+        return "Error: No hay capas seleccionadas para construir el grafo.", nx.Graph()
+
+    # --- 1) Limpiar carpeta ./lib si existe ---
+    lib_path = "./lib"
+    if os.path.exists(lib_path) and os.path.isdir(lib_path):
+        try:
+            shutil.rmtree(lib_path)
+        except Exception as e:
+            print(f"⚠️ No se pudo eliminar './lib': {e}")
+
+    # --- 2) Construir y clusterizar grafo ---
+    G = build_filtered_graph(df_historico, selected_layers)
+    G = apply_clustering_and_coloring(G)
+
+    if not isinstance(G, nx.Graph) or G.number_of_nodes() == 0:
+        return "Error: No se generó ningún nodo. Verifica tus datos y capas seleccionadas.", nx.Graph()
+
+    # --- 3) Crear objeto PyVis ---
+    net = Network(
+        height="700px",
+        width="100%",
+        bgcolor="#262730",
+        font_color="white",
+        notebook=False,
+        directed=False
+    )
+
+    # --- 4) Añadir nodos y aristas filtrando por min_degree ---
+    visible_nodes = []
+    for n, d in G.nodes(data=True):
+        deg = G.degree(n)
+        if deg >= min_degree:
+            visible_nodes.append(n)
+            node_size = max(12, min(int(math.log(deg + 1) * 20), 60))
+            font_size = max(10, min(node_size * 2 // 3, 28))
+            net.add_node(
+                n,
+                label=n,
+                title=f"{n} (Grado: {deg}, Cluster: {d.get('cluster_id')})",
+                size=node_size,
+                color=d.get('color', '#888888'),
+                font={'size': font_size, 'face': 'Arial', 'color': '#FFFFFF'},
+                group=d.get('cluster_id', 0)
+            )
+
+    for u, v, attrs in G.edges(data=True):
+        if u in visible_nodes and v in visible_nodes:
+            weight = attrs.get('weight', 1)
+            net.add_edge(u, v, value=weight, title=f"Co-ocurrencia: {weight}")
+
+    # --- 5) Física ForceAtlas2 estable ---
+    net.toggle_physics(True)
+    try:
+        net.force_atlas_2based(
+            gravity=-40,
+            central_gravity=0.02,
+            spring_length=150,
+            spring_strength=0.05,
+            damping=0.6,
+            overlap=0.5
+        )
+    except Exception:
+        try:
+            net.force_atlas_2based()
+        except Exception:
+            pass
+
+    # --- 6) Opciones en JSON válido ---
+    options_dict = {
+        "nodes": {"font": {"size": 18, "strokeWidth": 3}, "scaling": {"min": 10, "max": 60}},
+        "edges": {"color": {"inherit": True}, "smooth": {"enabled": True, "type": "dynamic"}, "width": 1},
+        "physics": {"enabled": True, "solver": "forceAtlas2Based",
+                    "forceAtlas2Based": {"gravitationalConstant": -40, "centralGravity": 0.02,
+                                         "springLength": 150, "springConstant": 0.05,
+                                         "damping": 0.6, "avoidOverlap": 0.5},
+                    "stabilization": {"enabled": True, "iterations": 400, "fit": True}},
+        "interaction": {"hover": True, "tooltipDelay": 100, "zoomView": True, "dragNodes": True}
+    }
+    net.set_options(json.dumps(options_dict))
 
     try:
-        # --- 1) Limpiar restos problemáticos (./lib) si existen ---
-        try:
-            if os.path.exists("./lib") and os.path.isdir("./lib"):
-                shutil.rmtree("./lib")
-        except Exception:
-            # No fatal: si no se puede borrar, continuamos y confiamos en temp files
-            pass
+        net.show_buttons(filter_=['physics'])
+    except Exception:
+        pass
 
-        # --- 2) Construir y clusterizar grafo (usa tus funciones existentes) ---
-        G = build_filtered_graph(df_historico, selected_layers)
-        G = apply_clustering_and_coloring(G)
+    # --- 7) Guardar HTML en archivo temporal limpio ---
+    html = None
+    tmp_path = Path(tempfile.gettempdir()) / "graph_tmp.html"
 
-        if not isinstance(G, nx.Graph) or G.number_of_nodes() == 0:
-            return "Error: No se generó ningún nodo. Verifica tus datos y capas seleccionadas.", None
-
-        # --- 3) Crear objeto PyVis ---
-        net = Network(height="700px", width="100%", bgcolor="#262730", font_color="white", notebook=False, directed=False)
-
-        # --- 4) Añadir nodos y aristas filtrando por min_degree ---
-        visible_nodes = []
-        for n, d in G.nodes(data=True):
-            deg = G.degree(n)
-            if deg >= min_degree:
-                visible_nodes.append(n)
-
-                # Tamaño y fuente proporcionales, con min/max
-                node_size = max(12, min(int(math.log(deg + 1) * 20), 60))   # entre 12 y 60
-                font_size = max(10, min(node_size * 2 // 3, 28))            # entre 10 y 28
-
-                net.add_node(
-                    n,
-                    label=n,
-                    title=f"{n} (Grado: {deg}, Cluster: {d.get('cluster_id')})",
-                    size=node_size,
-                    color=d.get('color', '#888888'),
-                    font={'size': font_size, 'face': 'Arial', 'color': '#FFFFFF'},
-                    group=d.get('cluster_id', 0)
-                )
-
-        # Agregar aristas solo entre nodos visibles
-        for u, v, attrs in G.edges(data=True):
-            if u in visible_nodes and v in visible_nodes:
-                weight = attrs.get('weight', 1)
-                net.add_edge(u, v, value=weight, title=f"Co-ocurrencia: {weight}")
-
-        # --- 5) Física estable con ForceAtlas2 y opciones JS vía set_options ---
-        net.toggle_physics(True)
-        try:
-            # Parámetros de ForceAtlas2 (ajustables si quieres más/menos separación)
-            net.force_atlas_2based(
-                gravity=-40,           # negativo => repulsión/compactación controlada
-                central_gravity=0.02,  # atrae hacia el centro con intensidad baja
-                spring_length=150,     # longitud "ideal" de aristas
-                spring_strength=0.05,  # rigidez de las aristas
-                damping=0.6,           # amortiguación para que estabilice rápido
-                overlap=0.5            # intentar evitar solapamientos
-            )
-        except Exception:
-            # Si la versión de pyvis no soporta parámetros, no es fatal
-            try:
-                net.force_atlas_2based()
-            except Exception:
-                pass
-
-        # Opciones JS/JSON inyectadas en el HTML (valores coherentes con ForceAtlas2)
-        js_options = """
-var options = {
-  "nodes": {
-    "font": { "size": 18, "strokeWidth": 3 },
-    "scaling": { "min": 10, "max": 60 }
-  },
-  "edges": {
-    "color": { "inherit": true },
-    "smooth": { "enabled": true, "type": "dynamic" },
-    "width": 1
-  },
-  "physics": {
-    "enabled": true,
-    "solver": "forceAtlas2Based",
-    "forceAtlas2Based": {
-      "gravitationalConstant": -40,
-      "centralGravity": 0.02,
-      "springLength": 150,
-      "springConstant": 0.05,
-      "damping": 0.6,
-      "avoidOverlap": 0.5
-    },
-    "stabilization": { "enabled": true, "iterations": 400, "fit": true }
-  },
-  "interaction": {
-    "hover": true,
-    "tooltipDelay": 100,
-    "zoomView": true,
-    "dragNodes": true
-  }
-};
-"""
-        net.set_options(js_options)
-
-        # show_buttons es útil para depuración; no es fatal si falla
-        try:
-            net.show_buttons(filter_=['physics'])
-        except Exception:
-            pass
-
-        # --- 6) Generar HTML en archivo temporal de forma segura ---
-        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmp:
-            tmp_path = tmp.name
-
-        try:
-            net.save_graph(tmp_path)
-            # Leer HTML en memoria
-            with open(tmp_path, "r", encoding="utf-8") as f:
-                html = f.read()
-        finally:
-            # Intentar eliminar temporal (si falla, no interrumpimos la app)
-            try:
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
-            except Exception:
-                pass
-
-        # --- 7) Retornar HTML y grafo ---
-        return html, G
-
+    try:
+        net.save_graph(str(tmp_path))
+        with open(tmp_path, "r", encoding="utf-8") as f:
+            html = f.read()
+            # 🔧 Limpiar caracteres invisibles
+            html = html.replace("\ufeff", "").replace("\x00", "")
     except Exception as e:
-        # Capturamos cualquier otro fallo y lo devolvemos claramente
-        return f"Error al generar el grafo: {e}", None
+        return f"Error al generar el grafo: {e}", nx.Graph()
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+    return html, G
+
 
 # ------------------------
 # DASHBOARD (UN SOLO RENDER)
