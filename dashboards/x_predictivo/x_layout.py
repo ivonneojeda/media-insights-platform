@@ -179,39 +179,31 @@ def render_gauge(df):
 
 def render_interactive_graph(df_historico, selected_layers, min_degree=2):
     """
-    Construye un grafo interactivo con PyVis y lo devuelve listo para Streamlit usando un iframe.
+    Construye un grafo interactivo con PyVis listo para Streamlit.
+    Devuelve HTML limpio y estable para deploy.
     """
     import networkx as nx
     from pyvis.network import Network
     import math
-    import tempfile
-    import streamlit.components.v1 as components
     import json
 
-    # --- Validaciones ---
+    # --- 0) Validaciones rápidas ---
     if df_historico is None or df_historico.empty:
-        return "Error: DataFrame vacío o no proporcionado.", nx.Graph()
+        return "<p>Error: DataFrame vacío o no proporcionado.</p>", nx.Graph()
     if not selected_layers:
-        return "Error: No hay capas seleccionadas para construir el grafo.", nx.Graph()
+        return "<p>Error: No hay capas seleccionadas para construir el grafo.</p>", nx.Graph()
 
-    # --- Construir grafo y aplicar clustering ---
+    # --- 1) Construir grafo filtrado ---
     G = build_filtered_graph(df_historico, selected_layers)
     G = apply_clustering_and_coloring(G)
 
-    if G.number_of_nodes() == 0:
-        return "Error: No se generó ningún nodo. Verifica tus datos y capas seleccionadas.", nx.Graph()
+    if not isinstance(G, nx.Graph) or G.number_of_nodes() == 0:
+        return "<p>Error: No se generó ningún nodo. Verifica tus datos.</p>", nx.Graph()
 
-    # --- Crear objeto PyVis ---
-    net = Network(
-        height="700px",
-        width="100%",
-        bgcolor="#262730",
-        font_color="white",
-        notebook=False,
-        directed=False
-    )
+    # --- 2) Crear objeto PyVis ---
+    net = Network(height="700px", width="100%", bgcolor="#262730", font_color="white", notebook=False)
 
-    # --- Añadir nodos y aristas filtrando por min_degree ---
+    # --- 3) Añadir nodos filtrando por min_degree ---
     visible_nodes = []
     for n, d in G.nodes(data=True):
         deg = G.degree(n)
@@ -234,42 +226,25 @@ def render_interactive_graph(df_historico, selected_layers, min_degree=2):
             weight = attrs.get('weight', 1)
             net.add_edge(u, v, value=weight, title=f"Co-ocurrencia: {weight}")
 
-    # --- Física ForceAtlas2 estable ---
-    net.toggle_physics(True)
-    try:
-        net.force_atlas_2based(
-            gravity=-40,
-            central_gravity=0.02,
-            spring_length=150,
-            spring_strength=0.05,
-            damping=0.6,
-            overlap=0.5
-        )
-    except Exception:
-        try:
-            net.force_atlas_2based()
-        except Exception:
-            pass
-
-    # --- Opciones JSON ---
+    # --- 4) Opciones PyVis en JSON válido ---
     options_dict = {
-        "nodes": {"font": {"size": 18, "strokeWidth": 3}, "scaling": {"min": 10, "max": 60}},
+        "nodes": {"font": {"size": 18}, "scaling": {"min": 10, "max": 60}},
         "edges": {"color": {"inherit": True}, "smooth": {"enabled": True, "type": "dynamic"}, "width": 1},
-        "physics": {"enabled": True, "solver": "forceAtlas2Based"},
+        "physics": {"enabled": True, "solver": "forceAtlas2Based",
+                    "stabilization": {"enabled": True, "iterations": 400, "fit": True}},
         "interaction": {"hover": True, "tooltipDelay": 100, "zoomView": True, "dragNodes": True}
     }
     net.set_options(json.dumps(options_dict))
 
-    # --- Guardar HTML en archivo temporal y devolver iframe ---
+    # --- 5) Generar HTML seguro para Streamlit ---
     try:
-        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".html")
-        net.save_graph(tmp_file.name)
-        # Devolver componente iframe listo para Streamlit
-        iframe = components.iframe(tmp_file.name, height=700)
-    except Exception as e:
-        return f"Error al generar el grafo: {e}", nx.Graph()
+        html = net.generate_html()
+        html = html.replace("\ufeff", "").replace("\x00", "")
+    except Exception:
+        html = "<p>Error: no se pudo generar el grafo.</p>"
 
-    return iframe, G
+    return html, G
+
 # ------------------------
 # DASHBOARD (UN SOLO RENDER)
 # ------------------------
