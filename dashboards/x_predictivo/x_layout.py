@@ -1,228 +1,109 @@
-# dashboards/x_predictivo/x_layout.py
-import pandas as pd
-import numpy as np
 import streamlit as st
-import plotly.express as px
-import plotly.graph_objects as go
+import pandas as pd
 import networkx as nx
 from pyvis.network import Network
-import math
-import json
-from prophet import Prophet
+from community import community_louvain
 
-# ------------------------
-# CONFIGURACIÓN
-# ------------------------
-CSV_PATH = "data/Conversacion_UNAM_limpio.csv"
-DATE_COL = "created_at"
-SENTIMENT_COL = "sentiment"
-SENTIMENT_MAP = {"Positivo": 1.0, "Negativo": -1.0, "Neutro": 0.0}
-FIG_BG = '#262730'
-MODERN_COLOR_SCALE = ["#FF6347", "#D3D3D3", "#4CAF50"]
-COLOR_NEG = "#FF6347"
-COLOR_NEUTRO = "#D3D3D3"
-COLOR_POS = "#4CAF50"
+# ==============================
+# FUNCIÓN PRINCIPAL
+# ==============================
 
-# ------------------------
-# CARGA DE DATOS
-# ------------------------
-@st.cache_data(ttl=600)
-def load_data(path=CSV_PATH):
+def show_graph_layout(csv_path):
+    st.title("Mapa de hashtags, menciones y palabras")
+
+    # --- Cargar datos ---
     try:
-        df = pd.read_csv(path, encoding="utf-8", on_bad_lines="skip")
-        return df
+        df = pd.read_csv(csv_path)
     except Exception as e:
-        st.error(f"Error cargando CSV: {e}")
-        return pd.DataFrame()
+        st.error(f"Error al cargar el archivo: {e}")
+        return
 
-def prepare_data(df):
-    if df is None or df.empty:
-        return pd.DataFrame()
-    df = df.copy()
-
-    # Fecha
-    df[DATE_COL] = pd.to_datetime(df.get(DATE_COL), errors="coerce")
-    df[DATE_COL] = df[DATE_COL].dt.tz_localize(None)
-
-    # Sentimiento
-    if SENTIMENT_COL in df.columns:
-        df[SENTIMENT_COL] = df[SENTIMENT_COL].map(SENTIMENT_MAP).astype(float)
-    else:
-        df[SENTIMENT_COL] = np.nan
-
-    if df[SENTIMENT_COL].isna().all():
-        st.warning("⚠️ No se detectaron datos de sentimiento válidos en el CSV.")
-
-    df = df.rename(columns={SENTIMENT_COL: "sentiment_score"})
-
-    # Columnas obligatorias
-    for col in ["hashtags", "keywords", "mentions"]:
-        if col not in df.columns:
-            df[col] = np.nan
-        # Convertir a listas si no lo son
-        df[col] = df[col].apply(lambda x: x if isinstance(x, list) else str(x).split() if pd.notna(x) else [])
-
-    # Para heatmap
-    df["date_str"] = df[DATE_COL].dt.strftime("%b %d")
-    df["hour_str"] = df[DATE_COL].dt.strftime("%H:00")
-    return df
-
-# ------------------------
-# GRAFO INTERACTIVO
-# ------------------------
-def render_interactive_graph(df_historico, selected_layers, min_degree=2):
-    """
-    Construye un grafo interactivo para Streamlit, usando columnas separadas:
-    hashtags, keywords, mentions.
-    """
-    if df_historico is None or df_historico.empty:
-        return "Error: DataFrame vacío o no proporcionado.", nx.Graph()
-
+    # --- Construir grafo ---
     G = nx.Graph()
-    for idx, row in df_historico.iterrows():
-        row_nodes = []
-        if 'hashtags' in selected_layers:
-            row_nodes.extend([h.lower() for h in row.get('hashtags', []) if isinstance(h, str) and h])
-        if 'mentions' in selected_layers:
-            row_nodes.extend([m.lower() for m in row.get('mentions', []) if isinstance(m, str) and m])
-        if 'keywords' in selected_layers:
-            row_nodes.extend([k.lower() for k in row.get('keywords', []) if isinstance(k, str) and k])
 
-        for i, a in enumerate(row_nodes):
-            if not G.has_node(a):
-                G.add_node(a, size=1)
-            for b in row_nodes[i+1:]:
-                if G.has_edge(a, b):
-                    G[a][b]['weight'] += 1
-                else:
-                    G.add_edge(a, b, weight=1)
+    for _, row in df.iterrows():
+        palabras = str(row.get("keywords", "")).split()
+        for palabra in palabras:
+            if palabra not in G:
+                G.add_node(palabra)
+            for otra in palabras:
+                if palabra != otra:
+                    G.add_edge(palabra, otra)
 
-    visible_nodes = [n for n in G.nodes if G.degree(n) >= min_degree]
-    G_filtered = G.subgraph(visible_nodes).copy()
+    # --- Calcular comunidades con Louvain ---
+    if len(G.nodes) > 0:
+        partition = community_louvain.best_partition(G)
+        nx.set_node_attributes(G, partition, 'community')
+    else:
+        st.warning("No se encontraron nodos en el grafo.")
+        return
 
-    net = Network(height="700px", width="100%", bgcolor="#262730", font_color="white", notebook=False)
-    for n in G_filtered.nodes:
-        deg = G_filtered.degree(n)
-        node_size = max(12, min(int(math.log(deg + 1) * 20), 60))
-        font_size = max(10, min(node_size * 2 // 3, 28))
-        net.add_node(n, label=n, title=f"{n} (Grado: {deg})",
-                     size=node_size, color="#888888",
-                     font={'size': font_size, 'face': 'Arial', 'color': '#FFFFFF'})
+    # --- Filtro: grado mínimo de conexión ---
+    st.subheader("Filtrar hashtags, menciones o palabras poco conectadas")
 
-    for u, v, attrs in G_filtered.edges(data=True):
-        net.add_edge(u, v, value=attrs.get('weight', 1), title=f"Co-ocurrencia: {attrs.get('weight', 1)}")
+    min_degree = st.slider(
+        "Selecciona el nivel mínimo de conexión:",
+        min_value=1,
+        max_value=10,
+        value=2,
+        help="Ajusta cuántas conexiones debe tener un hashtag, mención o palabra para mostrarse. "
+             "Los valores bajos muestran más elementos; los altos muestran solo los más conectados."
+    )
 
-    net.toggle_physics(True)
-    try:
-        net.force_atlas_2based()
-    except Exception:
-        pass
+    # --- Filtrar nodos por grado ---
+    nodes_to_keep = [n for n, d in dict(G.degree()).items() if d >= min_degree]
+    G_filtered = G.subgraph(nodes_to_keep).copy()
 
-    options_dict = {
-        "nodes": {"font": {"size": 18, "strokeWidth": 3}, "scaling": {"min": 10, "max": 60}},
-        "edges": {"color": {"inherit": True}, "smooth": {"enabled": True, "type": "dynamic"}, "width": 1},
-        "physics": {"enabled": True, "solver": "forceAtlas2Based"},
-        "interaction": {"hover": True, "tooltipDelay": 100, "zoomView": True, "dragNodes": True}
+    st.caption(
+        "Este grafo muestra solo los hashtags, menciones o palabras con más conexiones para facilitar la visualización. "
+        "Al reducir el filtro, se incluirán los que tienen menos relación con los demás."
+    )
+
+    # --- Mensaje si se ocultan elementos ---
+    if len(G_filtered) < len(G):
+        st.info(
+            f"Se muestran {len(G_filtered)} de {len(G)} elementos totales. "
+            "Algunos hashtags, menciones o palabras con pocas conexiones no aparecen."
+        )
+
+    # --- Crear visualización interactiva con PyVis ---
+    net = Network(height="650px", width="100%", bgcolor="#ffffff", font_color="black")
+
+    # Definir colores por comunidad
+    communities = set(nx.get_node_attributes(G_filtered, 'community').values())
+    palette = [
+        "#E4572E", "#76B041", "#4C78A8", "#F2AF29", "#B279A2", "#FF8C00", "#54A24B",
+        "#9467BD", "#17BECF", "#D62728"
+    ]
+
+    color_map = {
+        c: palette[i % len(palette)] for i, c in enumerate(sorted(communities))
     }
-    net.set_options(json.dumps(options_dict))
 
-    try:
-        html = net.generate_html()
-        html = html.replace("\ufeff", "").replace("\x00", "")
-    except Exception as e:
-        return f"Error al generar el grafo: {e}", nx.Graph()
+    for node, data in G_filtered.nodes(data=True):
+        net.add_node(
+            node,
+            label=node,
+            title=f"{node} — Conexiones: {G_filtered.degree(node)}",
+            color=color_map.get(data.get("community"), "#CCCCCC")
+        )
 
-    return html, G_filtered
+    for source, target in G_filtered.edges():
+        net.add_edge(source, target)
 
-# ------------------------
-# HEATMAP
-# ------------------------
-def render_heatmap(df):
-    if df.empty or not all(c in df.columns for c in ["sentiment_score","date_str","hour_str"]):
-        st.warning("Datos inválidos para el Heatmap.")
-        return
+    # --- Exportar y mostrar ---
+    net.repulsion(
+        node_distance=120,
+        central_gravity=0.33,
+        spring_length=120,
+        spring_strength=0.10,
+        damping=0.95
+    )
 
-    pivot = df.pivot_table(index="hour_str", columns="date_str", values="sentiment_score", aggfunc="mean").fillna(0).T
-    hour_order = [f"{h:02d}:00" for h in range(24)]
-    date_order = sorted(df["date_str"].unique(), key=lambda x: pd.to_datetime(x, format="%b %d"))
-    full_index = pd.MultiIndex.from_product([date_order, hour_order], names=['date_str', 'hour_str'])
-    df_plot = pivot.stack().reindex(full_index).fillna(0).reset_index(name='sentiment_mean')
+    html_path = "graph.html"
+    net.save_graph(html_path)
 
-    fig = px.density_heatmap(df_plot, x="date_str", y="hour_str", z="sentiment_mean",
-                             histfunc="avg", color_continuous_scale=MODERN_COLOR_SCALE,
-                             category_orders={"hour_str": hour_order, "date_str": date_order})
-    fig.update_layout(title=dict(text="Distribución de Sentimiento Promedio por Hora", x=0.0, xanchor='left'),
-                      height=600,
-                      xaxis=dict(tickangle=-45),
-                      plot_bgcolor=FIG_BG, paper_bgcolor=FIG_BG, font=dict(color="white"))
-    fig.update_traces(xgap=1, ygap=1)
-    st.plotly_chart(fig, use_container_width=True)
+    with open(html_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
 
-# ------------------------
-# GAUGE
-# ------------------------
-def render_gauge(df):
-    if df.empty or "sentiment_score" not in df.columns:
-        st.warning("Datos inválidos para el Gauge.")
-        return
-    last_score = df["sentiment_score"].mean()
-    if last_score >= 0.33:
-        color, label = COLOR_POS, "POSITIVO"
-    elif last_score <= -0.33:
-        color, label = COLOR_NEG, "NEGATIVO"
-    else:
-        color, label = COLOR_NEUTRO, "NEUTRO"
-
-    fig_gauge = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=np.clip(last_score, -1, 1),
-        number={"valueformat":".2f", "font":dict(color='white',size=32)},
-        gauge={"axis":{"range":[-1,1], "showticklabels": False}, "bar":{"color": color}}
-    ))
-    fig_gauge.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor=FIG_BG, font=dict(color="white"))
-    fig_gauge.add_annotation(text=label, x=0.5, y=0.25, showarrow=False, font=dict(size=18,color="white"))
-    st.plotly_chart(fig_gauge, use_container_width=True)
-
-# ------------------------
-# DASHBOARD COMPLETO
-# ------------------------
-def render_x_dashboard():
-    st.title("🗣️ Análisis de Sentimiento y Conversación de X")
-    st.markdown("---")
-
-    df_raw = load_data()
-    if df_raw.empty:
-        st.info("No hay datos cargados.")
-        return
-    df_historico = prepare_data(df_raw)
-    if df_historico.empty:
-        st.info("No hay datos válidos después de la limpieza.")
-        return
-
-    # Visualizaciones
-    col1, col2 = st.columns([2,1])
-    with col1:
-        st.subheader("🔥 Histórico de Sentimiento")
-        render_heatmap(df_historico)
-    with col2:
-        st.subheader("🔮 Pronóstico (Próxima Hora)")
-        render_gauge(df_historico)
-
-    st.markdown("---")
-    st.subheader("🌐 Grafo de Relaciones y Temas")
-    default_layers = ['hashtags','mentions','keywords']
-    selected_layers = st.multiselect("Selecciona capas de datos:", options=default_layers, default=default_layers)
-    if not selected_layers:
-        st.info("Selecciona al menos una capa para construir el grafo.")
-        st.stop()
-
-    min_deg = st.slider("Mínimo de conexiones (Grado) a mostrar:", 1, 5, 1)
-    html_content, G_full = render_interactive_graph(df_historico, selected_layers, min_degree=min_deg)
-
-    if isinstance(html_content, str) and html_content.startswith("Error"):
-        st.error(html_content)
-    elif G_full.number_of_nodes() == 0:
-        st.info("No hay suficientes nodos para mostrar con el filtro actual.")
-    else:
-        st.write(f"Nodos: **{len(G_full.nodes)}**, Conexiones: **{len(G_full.edges)}**")
-        st.components.v1.html(html_content, height=700, scrolling=True)
+    st.components.v1.html(html_content, height=680, scrolling=True)
