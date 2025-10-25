@@ -1,9 +1,9 @@
 # main_dashboard.py
 import streamlit as st
-
-# Importar dashboards individuales
+import pandas as pd
 from dashboards.facebook.facebook_layout import render_facebook_dashboard
 from dashboards.x_predictivo.x_layout import render_x_dashboard
+
 from dashboards.benchmark.benchmark_layout import render_benchmark_dashboard
 from dashboards.telegram.telegram_layout import render_telegram_dashboard
 
@@ -15,123 +15,45 @@ st.set_page_config(
 
 # --- Modo claro / oscuro ---
 theme = st.sidebar.radio("Selecciona un modo", ["Claro", "Oscuro"])
+bg_color = "#FFFFFF" if theme == "Claro" else "#0E1117"
+text_color = "#2F2F2F" if theme == "Claro" else "#FFFFFF"
 
-# --- Colores principales ---
-if theme == "Claro":
-    bg_color = "#FFFFFF"
-    text_color = "#2F2F2F"
-else:
-    bg_color = "#0E1117"
-    text_color = "#FFFFFF"
-
-# --- Sidebar con color fijo ---
-sidebar_bg = "#1E293B"         # gris azulado oscuro (constante)
-sidebar_text_color = "#FFFFFF" # texto blanco siempre
+# --- Sidebar fijo ---
+sidebar_bg = "#1E293B"
+sidebar_text_color = "#FFFFFF"
 
 # --- Estilos CSS ---
 st.markdown(
     f"""
     <style>
-    .stApp {{
-        background-color: {bg_color};
-        color: {text_color};
-    }}
-    /* Sidebar */
-    [data-testid="stSidebar"] {{
-        background-color: {sidebar_bg} !important;
-    }}
-    [data-testid="stSidebar"] * {{
-        color: {sidebar_text_color} !important;
-    }}
-    /* Texto general */
-    h1, h2, h3, h4, h5, h6, p, label, span {{
-        color: {text_color};
-    }}
+    .stApp {{ background-color: {bg_color}; color: {text_color}; }}
+    [data-testid="stSidebar"] {{ background-color: {sidebar_bg} !important; }}
+    [data-testid="stSidebar"] * {{ color: {sidebar_text_color} !important; }}
+    h1,h2,h3,h4,h5,h6,p,label,span {{ color: {text_color}; }}
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# --- Encabezado principal ---
+# --- Encabezado ---
 st.title("Dashboard de inteligencia digital")
 st.markdown("Análisis en redes sociales y canales de alerta.")
 
-# --- Menú lateral como pestañas ---
+# --- Menú lateral ---
 selected_dashboard = st.sidebar.radio(
     "Selecciona una plataforma",
     ["Listening", "Analysis", "Benchmark", "Incidencias"]
 )
 
-# --- Contenido de cada sección ---
+# --- Contenido ---
 if selected_dashboard == "Listening":
-    st.header("Listening")
     render_facebook_dashboard()
 
 elif selected_dashboard == "Analysis":
-    st.header("📊 Análisis de Conversación en X (UNAM)")
-
-    import pandas as pd
-    import streamlit.components.v1 as components
-    from dashboards.x_predictivo.x_layout import (
-        render_interactive_graph,
-        render_gauge,
-        render_heatmap
-    )
-
-    # --- 1) Cargar CSV directamente desde GitHub ---
-    csv_url = "https://raw.githubusercontent.com/ivonneojeda/media-insights-platform/main/data/Conversaci%C3%B3n%20sobre%20UNAM%205-7oct25%20-%20ISO.csv"
-
-    try:
-        df_historico = pd.read_csv(csv_url, encoding='utf-8', on_bad_lines='skip')
-    except Exception as e:
-        st.error(f"❌ No se pudo cargar el CSV: {e}")
-        st.stop()
-
-    # --- 2) Normalizar columnas ---
-    for col in ['hashtags', 'keywords', 'mentions']:
-        if col in df_historico.columns:
-            df_historico[col] = (
-                df_historico[col]
-                .fillna("")
-                .astype(str)
-                .str.replace(r"[\[\]']", "", regex=True)
-                .str.split(r"[;,]\s*")
-            )
-
-    # --- 3) Panel superior con métricas ---
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.subheader("🔥 Mapa de actividad (histórico)")
-        render_heatmap(df_historico)
-    with col2:
-        st.subheader("🧭 Promedio de sentimiento")
-        render_gauge(df_historico)
-
-    st.markdown("---")
-
-    # --- 4) Controles del grafo ---
-    st.subheader("🌐 Grafo de relaciones y temas")
-    available_layers = ['keywords', 'mentions']
-    selected_layer = st.selectbox("Selecciona la capa a visualizar:", available_layers, index=0)
-
-    min_degree = st.slider("Grado mínimo (conexiones mínimas a mostrar):", 1, 5, 2)
-
-    # --- 5) Renderizar grafo ---
-    try:
-        html_content, G = render_interactive_graph(df_historico, selected_layer, min_degree=min_degree)
-        if isinstance(html_content, str) and html_content.startswith("Error"):
-            st.error(html_content)
-        else:
-            st.info(f"Nodos: **{len(G.nodes())}**, Enlaces: **{len(G.edges())}**")
-            components.html(html_content, height=700, scrolling=True)
-    except Exception as e:
-        st.error(f"Ocurrió un error al generar el grafo: {e}")
-
+    render_x_dashboard()
 
 elif selected_dashboard == "Benchmark":
-    st.header("Benchmark")
     render_benchmark_dashboard()
 
 elif selected_dashboard == "Incidencias":
-    st.header("Incidencias")
     render_telegram_dashboard()
