@@ -13,6 +13,8 @@ import tempfile
 from pyvis.network import Network
 import community as community_louvain
 import math
+import streamlit.components.v1 as components
+
 # ------------------------
 # CONFIG
 # ------------------------
@@ -177,39 +179,29 @@ def render_gauge(df):
 
 def render_interactive_graph(df_historico, selected_layers, min_degree=2):
     """
-    Construye un grafo interactivo con PyVis listo para Streamlit y estable para deploy.
+    Construye un grafo interactivo con PyVis y lo devuelve listo para Streamlit usando un iframe.
     """
-    import os
-    import shutil
-    import tempfile
     import networkx as nx
     from pyvis.network import Network
     import math
+    import tempfile
+    import streamlit.components.v1 as components
     import json
-    from pathlib import Path
 
-    # --- 0) Validaciones rápidas ---
+    # --- Validaciones ---
     if df_historico is None or df_historico.empty:
         return "Error: DataFrame vacío o no proporcionado.", nx.Graph()
     if not selected_layers:
         return "Error: No hay capas seleccionadas para construir el grafo.", nx.Graph()
 
-    # --- 1) Limpiar carpeta ./lib si existe ---
-    lib_path = "./lib"
-    if os.path.exists(lib_path) and os.path.isdir(lib_path):
-        try:
-            shutil.rmtree(lib_path)
-        except Exception as e:
-            print(f"⚠️ No se pudo eliminar './lib': {e}")
-
-    # --- 2) Construir y clusterizar grafo ---
+    # --- Construir grafo y aplicar clustering ---
     G = build_filtered_graph(df_historico, selected_layers)
     G = apply_clustering_and_coloring(G)
 
-    if not isinstance(G, nx.Graph) or G.number_of_nodes() == 0:
+    if G.number_of_nodes() == 0:
         return "Error: No se generó ningún nodo. Verifica tus datos y capas seleccionadas.", nx.Graph()
 
-    # --- 3) Crear objeto PyVis ---
+    # --- Crear objeto PyVis ---
     net = Network(
         height="700px",
         width="100%",
@@ -219,7 +211,7 @@ def render_interactive_graph(df_historico, selected_layers, min_degree=2):
         directed=False
     )
 
-    # --- 4) Añadir nodos y aristas filtrando por min_degree ---
+    # --- Añadir nodos y aristas filtrando por min_degree ---
     visible_nodes = []
     for n, d in G.nodes(data=True):
         deg = G.degree(n)
@@ -242,7 +234,7 @@ def render_interactive_graph(df_historico, selected_layers, min_degree=2):
             weight = attrs.get('weight', 1)
             net.add_edge(u, v, value=weight, title=f"Co-ocurrencia: {weight}")
 
-    # --- 5) Física ForceAtlas2 estable ---
+    # --- Física ForceAtlas2 estable ---
     net.toggle_physics(True)
     try:
         net.force_atlas_2based(
@@ -259,36 +251,25 @@ def render_interactive_graph(df_historico, selected_layers, min_degree=2):
         except Exception:
             pass
 
-    # --- 6) Opciones en JSON válido ---
+    # --- Opciones JSON ---
     options_dict = {
         "nodes": {"font": {"size": 18, "strokeWidth": 3}, "scaling": {"min": 10, "max": 60}},
         "edges": {"color": {"inherit": True}, "smooth": {"enabled": True, "type": "dynamic"}, "width": 1},
-        "physics": {"enabled": True, "solver": "forceAtlas2Based",
-                    "forceAtlas2Based": {"gravitationalConstant": -40, "centralGravity": 0.02,
-                                         "springLength": 150, "springConstant": 0.05,
-                                         "damping": 0.6, "avoidOverlap": 0.5},
-                    "stabilization": {"enabled": True, "iterations": 400, "fit": True}},
+        "physics": {"enabled": True, "solver": "forceAtlas2Based"},
         "interaction": {"hover": True, "tooltipDelay": 100, "zoomView": True, "dragNodes": True}
     }
     net.set_options(json.dumps(options_dict))
 
+    # --- Guardar HTML en archivo temporal y devolver iframe ---
     try:
-        net.show_buttons(filter_=['physics'])
-    except Exception:
-        pass
-
-    # --- 7) Generar HTML directo sin archivos temporales ---
-    try:
-        html = net.generate_html()
-    # Limpieza preventiva
-        html = html.replace("\ufeff", "").replace("\x00", "")
+        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".html")
+        net.save_graph(tmp_file.name)
+        # Devolver componente iframe listo para Streamlit
+        iframe = components.iframe(tmp_file.name, height=700)
     except Exception as e:
         return f"Error al generar el grafo: {e}", nx.Graph()
 
-    return html, G
-
-
-
+    return iframe, G
 # ------------------------
 # DASHBOARD (UN SOLO RENDER)
 # ------------------------
@@ -346,9 +327,9 @@ def render_x_dashboard():
         st.info("No hay suficientes nodos para mostrar con el filtro actual.")
     else:
         st.write(f"Nodos: **{len(G_full.nodes())}**, Enlaces: **{len(G_full.edges())}**")
-        st.components.v1.html(html_content, height=600, scrolling=True)
-
-
+    
+    # --- Render seguro en Streamlit ---
+        components.html(html_content, height=700, scrolling=True)
 # ------------------------
 # RUN
 # ------------------------
