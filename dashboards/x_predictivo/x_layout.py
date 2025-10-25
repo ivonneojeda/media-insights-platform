@@ -277,26 +277,16 @@ def render_interactive_graph(df_historico, selected_layers, min_degree=2):
     except Exception:
         pass
 
-    # --- 7) Guardar HTML en archivo temporal limpio ---
-    html = None
-    tmp_path = Path(tempfile.gettempdir()) / "graph_tmp.html"
-
+    # --- 7) Generar HTML directo sin archivos temporales ---
     try:
-        net.save_graph(str(tmp_path))
-        with open(tmp_path, "r", encoding="utf-8") as f:
-            html = f.read()
-            # 🔧 Limpiar caracteres invisibles
-            html = html.replace("\ufeff", "").replace("\x00", "")
+        html = net.generate_html()
+    # Limpieza preventiva
+        html = html.replace("\ufeff", "").replace("\x00", "")
     except Exception as e:
         return f"Error al generar el grafo: {e}", nx.Graph()
-    finally:
-        if tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except Exception:
-                pass
 
     return html, G
+
 
 
 # ------------------------
