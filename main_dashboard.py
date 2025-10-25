@@ -68,43 +68,61 @@ if selected_dashboard == "Listening":
     render_facebook_dashboard()
 
 elif selected_dashboard == "Analysis":
-    st.header("Analysis")
+    st.header("📊 Análisis de Conversación en X (UNAM)")
 
     import pandas as pd
     import streamlit.components.v1 as components
-    from dashboards.x_predictivo.x_layout import render_interactive_graph
+    from dashboards.x_predictivo.x_layout import (
+        render_interactive_graph,
+        render_gauge,
+        render_heatmap
+    )
 
-    # --- 1) Cargar CSV ---
+    # --- 1) Cargar CSV directamente desde GitHub ---
     csv_url = "https://raw.githubusercontent.com/ivonneojeda/media-insights-platform/main/data/Conversaci%C3%B3n%20sobre%20UNAM%205-7oct25%20-%20ISO.csv"
+
     try:
-        df_historico = pd.read_csv(csv_url, encoding='utf-8')
+        df_historico = pd.read_csv(csv_url, encoding='utf-8', on_bad_lines='skip')
     except Exception as e:
-        st.error(f"No se pudo cargar el CSV: {e}")
+        st.error(f"❌ No se pudo cargar el CSV: {e}")
         st.stop()
 
     # --- 2) Normalizar columnas ---
     for col in ['hashtags', 'keywords', 'mentions']:
         if col in df_historico.columns:
-            df_historico[col] = df_historico[col].fillna("").astype(str).str.split(r"[;,]\s*")
+            df_historico[col] = (
+                df_historico[col]
+                .fillna("")
+                .astype(str)
+                .str.replace(r"[\[\]']", "", regex=True)
+                .str.split(r"[;,]\s*")
+            )
 
-    # --- 3) Selección de capas ---
-    available_layers = ['hashtags', 'mentions', 'keywords']
-    selected_layers = st.multiselect(
-        "Selecciona las capas para el grafo:", 
-        available_layers, 
-        default=available_layers
-    )
+    # --- 3) Panel superior con métricas ---
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.subheader("🔥 Mapa de actividad (histórico)")
+        render_heatmap(df_historico)
+    with col2:
+        st.subheader("🧭 Promedio de sentimiento")
+        render_gauge(df_historico)
 
-    if not selected_layers:
-        st.warning("Selecciona al menos una capa para visualizar el grafo.")
-        st.stop()
+    st.markdown("---")
 
-    # --- 4) Renderizar grafo con manejo seguro de errores ---
+    # --- 4) Controles del grafo ---
+    st.subheader("🌐 Grafo de relaciones y temas")
+    available_layers = ['keywords', 'mentions']
+    selected_layer = st.selectbox("Selecciona la capa a visualizar:", available_layers, index=0)
+
+    min_degree = st.slider("Grado mínimo (conexiones mínimas a mostrar):", 1, 5, 2)
+
+    # --- 5) Renderizar grafo ---
     try:
-        html_content, G = render_interactive_graph(df_historico, selected_layers, min_degree=2)
-        if isinstance(html_content, str) and html_content.startswith("Error:"):
+        html_content, G = render_interactive_graph(df_historico, selected_layer, min_degree=min_degree)
+        if isinstance(html_content, str) and html_content.startswith("Error"):
             st.error(html_content)
         else:
+            st.info(f"Nodos: **{len(G.nodes())}**, Enlaces: **{len(G.edges())}**")
             components.html(html_content, height=700, scrolling=True)
     except Exception as e:
         st.error(f"Ocurrió un error al generar el grafo: {e}")
