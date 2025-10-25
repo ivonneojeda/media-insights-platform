@@ -52,11 +52,21 @@ def prepare_data(df):
     df[DATE_COL] = pd.to_datetime(df.get(DATE_COL), errors="coerce")
     df[DATE_COL] = df[DATE_COL].dt.tz_localize(None)
     # Sentimiento
-    if SENTIMENT_COL in df.columns:
+    # --- Sentimiento ---
+    SENTIMENT_COL = next((c for c in df.columns if "sentiment" in c.lower()), None)
+
+    if SENTIMENT_COL:
+        # Si existe, mapea los valores y la renombra
         df[SENTIMENT_COL] = df[SENTIMENT_COL].map(SENTIMENT_MAP).astype(float)
+        df = df.rename(columns={SENTIMENT_COL: "sentiment_score"})
     else:
-        df[SENTIMENT_COL] = np.nan
-    df = df.rename(columns={SENTIMENT_COL: "sentiment_score"})
+        # Si no existe, crea la columna vacía
+        df["sentiment_score"] = np.nan
+
+        # Si todos los valores son NaN, muestra advertencia
+    if df["sentiment_score"].isna().all():
+        st.warning("⚠️ No se detectaron datos de sentimiento válidos en el CSV.")
+
     # Asegurar columnas
     for col in ["keywords", "mentions"]:
         if col not in df.columns:
@@ -184,85 +194,60 @@ from pyvis.network import Network
 import math
 import json
 
-def render_interactive_graph(df_historico, selected_layer, min_degree=2):
+def render_interactive_graph(df_historico, selected_layers, min_degree=2):
     """
-    Construye un grafo interactivo estable para Streamlit, filtrando por la capa seleccionada.
-    Trata 'keywords' y 'mentions' aunque estén mezcladas.
+    Construye un grafo interactivo estable para Streamlit, filtrando por las capas seleccionadas.
+    Maneja columnas que contienen listas o strings.
     """
+    import itertools
+
     if df_historico is None or df_historico.empty:
         return "Error: DataFrame vacío o no proporcionado.", nx.Graph()
-    
-    # Filtrar según la capa seleccionada
-    if selected_layer not in df_historico.columns:
-        return f"Error: Capa {selected_layer} no encontrada.", nx.Graph()
-    
-    df_layer = df_historico[df_historico[selected_layer].notna()]
-    
-    # Construir grafo simple
+
+    # Normalizar el DataFrame: convertir listas a strings si es necesario
+    df_historico = df_historico.copy()
+    for col in ["hashtags", "mentions", "keywords"]:
+        if col in df_historico.columns:
+            df_historico[col] = df_historico[col].apply(
+                lambda x: " ".join(x) if isinstance(x, list) else str(x)
+            )
+
+    # Crear grafo vacío
     G = nx.Graph()
-    for idx, row in df_layer.iterrows():
-        nodes_in_row = str(row[selected_layer]).split()  # Separar por espacios, aunque no sean exactos
-        for node in nodes_in_row:
-            G.add_node(node)
-        # Conectar nodos de la misma fila (co-ocurrencias)
-        for i in range(len(nodes_in_row)):
-            for j in range(i+1, len(nodes_in_row)):
-                u, v = nodes_in_row[i], nodes_in_row[j]
-                if G.has_edge(u, v):
-                    G[u][v]['weight'] += 1
-                else:
-                    G.add_edge(u, v, weight=1)
-    
-    # Crear objeto PyVis
-    net = Network(height="700px", width="100%", bgcolor="#262730", font_color="white", notebook=False)
-    
-    # Añadir nodos visibles
-    visible_nodes = [n for n in G.nodes if G.degree(n) >= min_degree]
-    for n in visible_nodes:
-        deg = G.degree(n)
-        node_size = max(12, min(int(math.log(deg + 1) * 20), 60))
-        font_size = max(10, min(node_size * 2 // 3, 28))
-        net.add_node(
-            n,
-            label=n,
-            title=f"{n} (Grado: {deg})",
-            size=node_size,
-            color="#888888",
-            font={'size': font_size, 'face': 'Arial', 'color': '#FFFFFF'}
-        )
-    
-    # Añadir aristas visibles
-    for u, v, attrs in G.edges(data=True):
-        if u in visible_nodes and v in visible_nodes:
-            net.add_edge(u, v, value=attrs.get('weight', 1), title=f"Co-ocurrencia: {attrs.get('weight', 1)}")
-    
-    # Física ForceAtlas2 estable
-    net.toggle_physics(True)
-    try:
-        net.force_atlas_2based(gravity=-40, central_gravity=0.02, spring_length=150, spring_strength=0.05, damping=0.6, overlap=0.5)
-    except Exception:
-        try:
-            net.force_atlas_2based()
-        except Exception:
-            pass
-    
-    # Opciones PyVis en JSON
-    options_dict = {
-        "nodes": {"font": {"size": 18, "strokeWidth": 3}, "scaling": {"min": 10, "max": 60}},
-        "edges": {"color": {"inherit": True}, "smooth": {"enabled": True, "type": "dynamic"}, "width": 1},
-        "physics": {"enabled": True, "solver": "forceAtlas2Based"},
-        "interaction": {"hover": True, "tooltipDelay": 100, "zoomView": True, "dragNodes": True}
-    }
-    net.set_options(json.dumps(options_dict))
-    
-    # Generar HTML sin archivos temporales
+
+    # Recorrer las capas seleccionadas
+    for layer in selected_layers:
+        if layer not in df_historico.columns:
+            continue
+        for _, row in df_historico.iterrows():
+            entities = str(row[layer]).split()
+            for i, a in enumerate(entities):
+                if not G.has_node(a):
+                    G.add_node(a, type=layer)
+                for b in entities[i + 1:]:
+                    if G.has_edge(a, b):
+                        G[a][b]['weight'] += 1
+                    else:
+                        G.add_edge(a, b, weight=1)
+
+    # Si no hay edges, retornar vacío
+    if G.number_of_edges() == 0:
+        return "Error: No se pudieron construir conexiones en el grafo.", G
+
+    # Aplicar física
+    net = Network(height="700px", width="100%", bgcolor="#262730", font_color="white")
+    net.from_nx(G)
+    net.force_atlas_2based()
+
+    # Render HTML
     try:
         html = net.generate_html()
         html = html.replace("\ufeff", "").replace("\x00", "")
     except Exception as e:
         return f"Error al generar el grafo: {e}", nx.Graph()
-    
+
     return html, G
+
 # ------------------------
 # DASHBOARD (UN SOLO RENDER)
 # ------------------------
