@@ -1,4 +1,5 @@
 # ========== REQUISITOS PARA DEPLOY (Streamlit Cloud) ==========
+
 # Streamlit y visualización
 streamlit==1.36.0
 pyvis==0.3.1
@@ -14,7 +15,7 @@ networkx==3.5
 
 # Modelado y series temporales
 prophet==1.1.5
-cmdstanpy
+cmdstanpy==1.2.4
 
 # Manejo de fechas
 python-dateutil==2.9.0.post0
@@ -25,6 +26,7 @@ setuptools>=68.0.0
 torch==2.5.0
 streamlit-extras==0.6.0
 python-louvain==0.16
+
 # Procesamiento de lenguaje natural
 spacy==3.7.4
 es_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/es_core_news_sm-3.7.0/es_core_news_sm-3.7.0.tar.gz
